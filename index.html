@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attendance — Login</title>
-  <link rel="stylesheet" href="https://oat.ink/components/oat.css" />
+  <title>Attendance — VBS 2026</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,20 +13,20 @@
       --surface-2: #1e2128;
       --border: #2a2d35;
       --accent: #6c63ff;
+      --accent-dim: #3d3875;
       --accent-glow: rgba(108,99,255,0.25);
-      --green: #22c55e;
-      --red: #ef4444;
+      --amber: #f59e0b;
+      --amber-dim: rgba(245,158,11,0.15);
       --muted: #6b7280;
       --text: #e5e7eb;
       --text-dim: #9ca3af;
       --radius: 16px;
-      --radius-sm: 10px;
+      --radius-sm: 12px;
     }
     :root.light {
       --bg: #f0f2f8; --surface: #ffffff; --surface-2: #eef0f5;
       --border: #d1d5db; --accent: #6c63ff; --accent-glow: rgba(108,99,255,0.15);
-      --green: #16a34a; --red: #dc2626; --muted: #6b7280;
-      --text: #111827; --text-dim: #374151;
+      --muted: #6b7280; --text: #111827; --text-dim: #374151;
     }
 
     body {
@@ -50,69 +49,74 @@
     .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
     .theme-toggle:active { transform: scale(0.93); }
 
-    .login-card {
-      width: 100%; max-width: 400px;
+    .card {
+      width: 100%; max-width: 420px;
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 32px 28px 28px;
+      border-radius: var(--radius); padding: 40px 32px 36px;
       box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+      text-align: center;
     }
-    .card-logo { font-size: 2.2rem; text-align: center; margin-bottom: 6px; }
-    .card-title { font-size: 1.25rem; font-weight: 800; text-align: center; letter-spacing: -0.03em; }
-    .card-sub { font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 4px; margin-bottom: 28px; }
 
-    .field { margin-bottom: 14px; }
-    .field label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; }
-    .field input {
-      width: 100%; background: var(--surface-2); border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm); color: var(--text);
-      padding: 12px 14px; font-size: 0.95rem; outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+    .card-logo { font-size: 2.6rem; margin-bottom: 10px; }
+    .card-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+    .card-sub { font-size: 0.82rem; color: var(--muted); margin-top: 6px; margin-bottom: 36px; }
+
+    .role-grid {
+      display: flex; gap: 14px;
     }
-    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-    .field input::placeholder { color: var(--muted); }
 
-    #otp-section { display: none; }
-    #otp-section.visible { display: block; }
-
-    .btn-full {
-      width: 100%; padding: 13px; border-radius: var(--radius-sm); border: none;
-      background: var(--accent); color: #fff;
-      font-size: 0.95rem; font-weight: 700; cursor: pointer;
-      transition: all 0.15s; -webkit-tap-highlight-color: transparent; margin-top: 4px;
+    .role-card {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px;
+      padding: 28px 12px 24px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      background: var(--surface-2);
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text-dim);
+      transition: all 0.18s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .btn-full:hover { opacity: 0.92; }
-    .btn-full:active { transform: scale(0.97); }
-    .btn-full:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-    .btn-text {
-      background: none; border: none; color: var(--accent);
-      font-size: 0.78rem; font-weight: 600; cursor: pointer;
-      padding: 0; margin-top: 10px; display: block; text-align: center; width: 100%;
+    .role-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.25);
     }
-    .btn-text:hover { text-decoration: underline; }
 
-    .otp-hint {
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: var(--radius-sm); padding: 10px 14px;
-      font-size: 0.78rem; color: var(--text-dim);
-      margin-bottom: 14px; line-height: 1.5; display: none;
+    .role-card.teacher:hover,
+    .role-card.teacher:focus {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: #fff;
     }
-    .otp-hint.visible { display: block; }
-    .otp-hint strong { color: var(--accent); font-size: 1rem; letter-spacing: 0.12em; }
 
-    .err-msg { color: var(--red); font-size: 0.75rem; font-weight: 600; margin-top: 8px; min-height: 18px; text-align: center; }
-    .divider { height: 1px; background: var(--border); margin: 20px 0; }
-    .card-footer { font-size: 0.7rem; color: var(--muted); text-align: center; margin-top: 20px; }
-
-    .toast {
-      position: fixed; bottom: 28px; left: 50%;
-      transform: translateX(-50%) translateY(10px);
-      background: var(--surface-2); border: 1px solid var(--border);
-      color: var(--text); padding: 10px 20px; border-radius: 999px;
-      font-size: 0.82rem; font-weight: 600; opacity: 0;
-      transition: all 0.25s ease; pointer-events: none; white-space: nowrap; z-index: 100;
+    .role-card.admin:hover,
+    .role-card.admin:focus {
+      border-color: var(--amber);
+      background: var(--amber-dim);
+      color: var(--amber);
     }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .role-card:active { transform: scale(0.97); }
+
+    .role-icon { font-size: 2.2rem; }
+
+    .role-label {
+      font-size: 0.85rem; font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .divider { height: 1px; background: var(--border); margin: 28px 0 20px; }
+
+    .card-footer {
+      font-size: 0.72rem; color: var(--muted);
+    }
+    .card-footer a {
+      color: var(--muted); text-decoration: none; font-weight: 600;
+    }
+    .card-footer a:hover { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -131,127 +135,34 @@
   <span id="theme-label">Dark</span>
 </button>
 
-<div class="login-card">
+<div class="card">
   <div class="card-logo">📋</div>
   <div class="card-title">VBS 2026</div>
-  <div class="card-sub">Sign in to manage your class</div>
+  <div class="card-sub">Select your role to continue</div>
 
-  <div class="field">
-    <label for="email-input">Email address</label>
-    <input type="email" id="email-input" placeholder="you@school.edu"
-           autocomplete="email" autocapitalize="none"
-           onkeydown="if(event.key==='Enter')sendOtp()" />
+  <div class="role-grid">
+    <a class="role-card teacher" href="teachers.html">
+      <span class="role-icon">🧑‍🏫</span>
+      <span class="role-label">Login as<br>Teacher</span>
+    </a>
+    <a class="role-card admin" href="admin.html">
+      <span class="role-icon">🔐</span>
+      <span class="role-label">Login as<br>Admin</span>
+    </a>
   </div>
 
-  <button class="btn-full" id="send-otp-btn" onclick="sendOtp()">Send OTP →</button>
-
-  <div class="divider" id="divider-1" style="display:none"></div>
-
-  <div id="otp-section">
-    <div class="otp-hint" id="otp-hint">
-      📨 OTP sent to your email. Your demo code is: <strong id="otp-display">------</strong>
-    </div>
-    <div class="field">
-      <label for="otp-input">Enter 6-digit OTP</label>
-      <input type="text" id="otp-input" placeholder="e.g. 483920"
-             maxlength="6" inputmode="numeric" pattern="[0-9]*"
-             autocomplete="one-time-code"
-             onkeydown="if(event.key==='Enter')verifyOtp()" />
-    </div>
-    <button class="btn-full" id="verify-btn" onclick="verifyOtp()">Verify &amp; Login</button>
-    <button class="btn-text" onclick="resendOtp()">Resend OTP</button>
+  <div class="divider"></div>
+  <div class="card-footer">
+    <a href="stats.html">📊 View Attendance Count</a>
   </div>
-
-  <div class="err-msg" id="err-msg"></div>
 </div>
 
-<a href="stats.html" style="
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  width:100%; max-width:400px;
-  margin-top:14px; padding:13px 20px;
-  border-radius:var(--radius-sm);
-  border:1.5px solid var(--accent);
-  background:transparent;
-  color:var(--accent);
-  font-size:0.9rem; font-weight:700;
-  text-decoration:none;
-  transition:all 0.15s;
-  -webkit-tap-highlight-color:transparent;
-  box-sizing:border-box;
-" onmouseover="this.style.background='rgba(108,99,255,0.1)'" onmouseout="this.style.background='transparent'">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-  </svg>
-  View Attendance Count
-</a>
-
-<div class="toast" id="toast"></div>
-
 <script>
-if (sessionStorage.getItem('authenticated')) location.replace('attendance.html');
-
-let generatedOtp = '';
-let otpEmail = '';
-
 function toggleTheme() {
   const isLight = document.documentElement.classList.toggle('light');
   document.getElementById('icon-moon').style.display = isLight ? 'none' : '';
   document.getElementById('icon-sun').style.display  = isLight ? '' : 'none';
   document.getElementById('theme-label').textContent = isLight ? 'Light' : 'Dark';
-}
-
-function sendOtp() {
-  const email = document.getElementById('email-input').value.trim();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    setError('Please enter a valid email address.'); return;
-  }
-  setError('');
-  otpEmail = email;
-  generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
-
-  document.getElementById('otp-section').classList.add('visible');
-  document.getElementById('otp-hint').classList.add('visible');
-  document.getElementById('otp-display').textContent = generatedOtp;
-  document.getElementById('divider-1').style.display = '';
-  document.getElementById('send-otp-btn').textContent = '✓ OTP Sent';
-  document.getElementById('send-otp-btn').disabled = true;
-  document.getElementById('email-input').disabled  = true;
-  setTimeout(() => document.getElementById('otp-input').focus(), 100);
-  showToast(`📨 OTP sent to ${email}`);
-}
-
-function verifyOtp() {
-  const entered = document.getElementById('otp-input').value.trim();
-  if (!entered) { setError('Please enter the OTP.'); return; }
-  if (entered !== generatedOtp) {
-    setError('Incorrect OTP. Please try again.');
-    document.getElementById('otp-input').value = '';
-    document.getElementById('otp-input').focus(); return;
-  }
-  setError('');
-  document.getElementById('verify-btn').textContent = '✓ Verified! Redirecting…';
-  document.getElementById('verify-btn').disabled = true;
-  sessionStorage.setItem('authenticated', 'true');
-  sessionStorage.setItem('userEmail', otpEmail);
-  setTimeout(() => { location.href = 'attendance.html'; }, 800);
-}
-
-function resendOtp() {
-  if (!otpEmail) return;
-  generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
-  document.getElementById('otp-display').textContent = generatedOtp;
-  document.getElementById('otp-input').value = '';
-  document.getElementById('otp-input').focus();
-  setError('');
-  showToast('🔄 New OTP generated');
-}
-
-function setError(msg) { document.getElementById('err-msg').textContent = msg; }
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
 }
 </script>
 </body>
