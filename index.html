@@ -165,14 +165,24 @@
   <div class="err-msg" id="err-msg"></div>
 </div>
 
-<div class="card-footer">VBS 2026 &nbsp;·&nbsp; Attendance Tracker</div>
-
 <a href="stats.html" style="
-  display:block; text-align:center; margin-top:16px;
-  font-size:0.78rem; font-weight:600; color:var(--accent);
-  text-decoration:none; opacity:0.85;
-">
-  📊 View total attendance count →
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; max-width:400px;
+  margin-top:14px; padding:13px 20px;
+  border-radius:var(--radius-sm);
+  border:1.5px solid var(--accent);
+  background:transparent;
+  color:var(--accent);
+  font-size:0.9rem; font-weight:700;
+  text-decoration:none;
+  transition:all 0.15s;
+  -webkit-tap-highlight-color:transparent;
+  box-sizing:border-box;
+" onmouseover="this.style.background='rgba(108,99,255,0.1)'" onmouseout="this.style.background='transparent'">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+  View Attendance Count
 </a>
 
 <div class="toast" id="toast"></div>
