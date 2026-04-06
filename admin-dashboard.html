@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VBS 2026 — Admin Dashboard</title>
+  <link rel="stylesheet" href="https://oat.ink/components/oat.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0f11; --surface: #16181c; --surface-2: #1e2128;
+      --border: #2a2d35; --accent: #6c63ff; --accent-dim: #3d3875;
+      --green: #22c55e; --green-bg: #14532d;
+      --red: #ef4444; --red-bg: #450a0a;
+      --amber: #f59e0b; --amber-bg: #451a03;
+      --muted: #6b7280; --text: #e5e7eb; --text-dim: #9ca3af;
+      --radius: 12px; --radius-sm: 8px;
+    }
+    :root.light {
+      --bg: #f0f2f8; --surface: #ffffff; --surface-2: #eef0f5;
+      --border: #d1d5db; --accent: #6c63ff; --accent-dim: #e0deff;
+      --green: #16a34a; --green-bg: #dcfce7;
+      --red: #dc2626; --red-bg: #fee2e2;
+      --amber: #d97706; --amber-bg: #fef3c7;
+      --muted: #6b7280; --text: #111827; --text-dim: #374151;
+    }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Top Bar ──────────────────────────────────── */
+    .top-bar {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; display: flex; align-items: center; gap: 10px;
+    }
+    .top-bar-center { flex: 1; }
+    .top-bar-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
+    .top-bar-sub { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+    .admin-pill {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--amber-bg); border: 1px solid var(--amber);
+      color: var(--amber); border-radius: 999px;
+      padding: 3px 10px; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
+    }
+    .admin-pill.superadmin {
+      background: #1a0a3b; border-color: #a78bfa; color: #a78bfa;
+    }
+
+    .theme-toggle {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px 5px 7px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text-dim); cursor: pointer;
+      font-size: 0.72rem; font-weight: 600; transition: all 0.2s;
+      flex-shrink: 0; -webkit-tap-highlight-color: transparent; white-space: nowrap;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .theme-toggle:active { transform: scale(0.93); }
+
+    .logout-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 10px 5px 8px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text-dim); cursor: pointer;
+      font-size: 0.72rem; font-weight: 600; transition: all 0.2s;
+      flex-shrink: 0; -webkit-tap-highlight-color: transparent; white-space: nowrap;
+    }
+    .logout-btn:hover { border-color: var(--red); color: var(--red); }
+    .logout-btn:active { transform: scale(0.93); }
+
+    /* ── Shell ───────────────────────────────────── */
+    .shell { max-width: 900px; margin: 0 auto; padding: 20px 20px 80px; }
+
+    /* ── Tabs ────────────────────────────────────── */
+    .tabs {
+      display: flex; gap: 4px; margin-bottom: 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 4px;
+    }
+    .tab-btn {
+      flex: 1; padding: 9px 12px; border-radius: var(--radius-sm);
+      border: none; background: transparent; color: var(--text-dim);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active { background: var(--accent); color: #fff; }
+    .tab-btn:not(.active):hover { background: var(--surface-2); color: var(--text); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Section label ───────────────────────────── */
+    .section-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 12px;
+    }
+
+    /* ── Controls row ────────────────────────────── */
+    .controls-row {
+      display: flex; align-items: center; gap: 10px;
+      flex-wrap: wrap; margin-bottom: 16px;
+    }
+
+    .select-wrap {
+      position: relative; flex: 1; min-width: 180px;
+    }
+    .select-wrap select {
+      width: 100%; appearance: none;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      padding: 9px 36px 9px 12px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; outline: none; transition: border-color 0.15s;
+    }
+    .select-wrap select:focus { border-color: var(--accent); }
+    .select-wrap::after {
+      content: '▾'; position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%); color: var(--muted); pointer-events: none;
+      font-size: 0.75rem;
+    }
+
+    /* ── Date strip ──────────────────────────────── */
+    .date-strip-wrap { margin-bottom: 18px; }
+    .date-strip {
+      display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px;
+    }
+    @media (max-width: 480px) { .date-strip { gap: 3px; } }
+    .date-cell {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      cursor: pointer; user-select: none;
+    }
+    .date-cell .day-label { font-size: 0.52rem; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+    .date-cell .day-num {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 600; transition: all 0.15s; color: var(--text-dim);
+    }
+    @media (min-width: 500px) { .date-cell .day-num { width: 34px; height: 34px; font-size: 0.78rem; } }
+    .date-cell.active .day-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .date-cell.today  .day-num { border-color: var(--accent); color: var(--text); }
+
+    /* ── Summary cards ───────────────────────────── */
+    .summary-row {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px;
+    }
+    .summary-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px; text-align: center;
+    }
+    .summary-card .num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .summary-card .lbl { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; }
+    .summary-card.present .num { color: var(--green); }
+    .summary-card.absent  .num { color: var(--red); }
+    .summary-card.total   .num { color: var(--text); }
+
+    /* ── Export buttons ──────────────────────────── */
+    .export-row {
+      display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .export-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 16px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text); font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .export-btn:hover { border-color: var(--accent); background: var(--surface); }
+    .export-btn:active { transform: scale(0.96); }
+
+    /* ── View mode toggle ────────────────────────── */
+    .view-toggle-row {
+      display: flex; gap: 6px; margin-bottom: 14px; align-items: center;
+    }
+    .view-toggle-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border); background: var(--surface);
+      color: var(--text-dim); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .view-toggle-btn.active {
+      border-color: var(--accent); background: var(--accent-dim); color: var(--text);
+    }
+    .view-toggle-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+    /* ── Attendance Table ────────────────────────── */
+    .table-scroll { overflow-x: auto; border-radius: var(--radius); }
+    .att-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; min-width: 300px;
+    }
+    .att-table thead tr { background: var(--accent); }
+    .att-table thead th {
+      padding: 9px 10px; font-size: 0.65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em; color: #fff;
+      text-align: center; white-space: nowrap;
+    }
+    .att-table thead th:first-child { text-align: left; min-width: 130px; }
+    .att-table thead th:last-child { background: rgba(0,0,0,0.2); }
+    .att-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    .att-table tbody tr:last-child { border-bottom: none; }
+    .att-table tbody tr:hover { background: var(--surface-2); }
+    .att-table tbody td { padding: 8px 10px; font-size: 0.82rem; text-align: center; }
+    .att-table tbody td:first-child { text-align: left; font-weight: 600; }
+    .att-table tbody td:last-child { font-weight: 700; background: rgba(34,197,94,0.06); }
+
+    /* Highlighted column for selected date */
+    .att-table th.col-active  { background: rgba(255,255,255,0.28) !important; outline: 2px solid rgba(255,255,255,0.5); outline-offset: -2px; }
+    .att-table td.col-active  { background: rgba(108,99,255,0.10); }
+
+    .cell-p { color: var(--green); font-weight: 700; }
+    .cell-a { color: var(--red); }
+    .cell-dash { color: var(--muted); }
+
+    /* ── Class section wrapper spacing ──────────────── */
+    .class-section-wrap { margin-bottom: 28px; }
+    .class-section-wrap:last-child { margin-bottom: 0; }
+
+    /* ── Class section header (within all-class view) */
+    .class-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-bottom: 8px; margin-top: 20px;
+    }
+    .class-section-header:first-of-type { margin-top: 0; }
+    .class-section-name { font-size: 0.9rem; font-weight: 700; }
+    .class-section-teacher { font-size: 0.72rem; color: var(--muted); }
+    .class-section-badge {
+      background: var(--green-bg); color: var(--green);
+      border-radius: 999px; padding: 2px 10px;
+      font-size: 0.72rem; font-weight: 700;
+    }
+
+    /* ── Manage Access Table ─────────────────────── */
+    .manage-table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .manage-table { width: 100%; border-collapse: collapse; }
+    .manage-table thead tr { background: var(--surface-2); border-bottom: 1px solid var(--border); }
+    .manage-table thead th {
+      padding: 10px 14px; font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left;
+    }
+    .manage-table thead th:last-child { text-align: right; }
+    .manage-table tbody tr { border-bottom: 1px solid var(--border); }
+    .manage-table tbody tr:last-child { border-bottom: none; }
+    .manage-table tbody td { padding: 11px 14px; font-size: 0.84rem; vertical-align: middle; }
+    .manage-table tbody td:last-child { text-align: right; }
+    .class-badge-sm {
+      display: inline-block; background: var(--accent-dim); color: #c4bfff;
+      border-radius: 6px; padding: 2px 8px; font-size: 0.7rem; font-weight: 700;
+    }
+    .teacher-name { font-weight: 600; }
+    .teacher-email { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+    /* ── Edit / Delete row buttons ──────────────── */
+    .row-edit-btn, .row-delete-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text-dim); font-size: 0.72rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .row-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .row-delete-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
+    /* ── Role badge ──────────────────────────────── */
+    .role-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 999px;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em;
+    }
+    .role-badge.teacher    { background: var(--accent-dim); color: #c4bfff; }
+    .role-badge.admin      { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber); }
+    .role-badge.superadmin { background: #1a0a3b; color: #a78bfa; border: 1px solid #a78bfa; }
+
+    /* ── Add user button ─────────────────────────── */
+    .add-user-btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: var(--radius-sm);
+      border: none; background: var(--accent);
+      color: #fff; font-size: 0.82rem; font-weight: 700;
+      cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 2px 8px rgba(108,99,255,0.35);
+    }
+    .add-user-btn:hover { opacity: 0.88; }
+    .add-user-btn:active { transform: scale(0.96); opacity: 0.9; }
+
+    /* ── Modal ───────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65); z-index: 200;
+      align-items: flex-end; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-sheet {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius) var(--radius) 0 0;
+      width: 100%; max-width: 480px; padding: 20px 20px 32px;
+    }
+    @media (min-width: 600px) {
+      .modal-overlay { align-items: center; }
+      .modal-sheet { border-radius: var(--radius); max-width: 440px; }
+    }
+    .modal-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 16px; }
+    .modal-field { margin-bottom: 12px; }
+    .modal-field label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
+    .modal-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      padding: 10px 12px; font-size: 0.88rem; outline: none;
+    }
+    .modal-input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .btn {
+      flex: 1; padding: 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: all 0.12s;
+    }
+    .btn.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn:active { transform: scale(0.96); }
+
+    /* ── Toast ───────────────────────────────────── */
+    .toast {
+      position: fixed; top: 70px; left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); padding: 10px 20px; border-radius: var(--radius);
+      font-size: 0.82rem; font-weight: 600; opacity: 0;
+      transition: all 0.25s ease; pointer-events: none; white-space: nowrap; z-index: 400;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Scrollbar ───────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Top Bar ──────────────────────────────────── -->
+<div class="top-bar">
+  <div class="top-bar-center">
+    <div class="top-bar-title">🛡️ Admin Dashboard</div>
+    <div class="top-bar-sub" id="admin-email-sub">VBS 2026</div>
+  </div>
+  <div class="admin-pill" id="role-pill">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span id="role-pill-label">Admin</span>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" fill="#facc15" stroke="#facc15" stroke-width="1" stroke-linejoin="round"/>
+    </svg>
+    <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <circle cx="12" cy="12" r="5" fill="#fde68a" stroke="#f59e0b"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <span id="theme-label">Dark</span>
+  </button>
+  <button class="logout-btn" onclick="adminLogout()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+    Logout
+  </button>
+</div>
+
+<div class="shell">
+
+  <!-- ── Tabs ─────────────────────────────────────── -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('attendance')">📊 Attendance Report</button>
+    <button class="tab-btn" id="tab-btn-manage" onclick="switchTab('manage')" style="display:none">⚙️ Manage Access</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 1: ATTENDANCE REPORT
+  ════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="tab-attendance">
+
+    <!-- Controls -->
+    <div class="controls-row">
+      <div class="select-wrap">
+        <select id="class-select" onchange="onClassChange()">
+          <option value="ALL">All Classes</option>
+        </select>
+      </div>
+      <div class="export-row" style="margin:0;flex:none">
+        <button class="export-btn" onclick="exportAllExcel()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          Excel
+        </button>
+        <button class="export-btn" onclick="exportAllPDF()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Date strip -->
+    <div class="date-strip-wrap">
+      <div class="section-label">Select a date</div>
+      <div class="date-strip" id="date-strip"></div>
+    </div>
+
+    <!-- View mode toggle -->
+    <div class="view-toggle-row">
+      <button class="view-toggle-btn active" id="btn-single-date" onclick="setViewMode('single')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        Selected Date Only
+      </button>
+      <button class="view-toggle-btn" id="btn-all-dates" onclick="setViewMode('all')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        All Dates
+      </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-row">
+      <div class="summary-card present"><div class="num" id="sum-present">0</div><div class="lbl">Present</div></div>
+      <div class="summary-card absent"><div class="num" id="sum-absent">0</div><div class="lbl">Absent</div></div>
+      <div class="summary-card total"><div class="num" id="sum-total">0</div><div class="lbl">Total</div></div>
+    </div>
+
+    <!-- Report output -->
+    <div id="report-output"></div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 2: MANAGE ACCESS
+  ════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-manage">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="section-label" style="margin-bottom:0">User &amp; Access Management</div>
+      <button class="add-user-btn" onclick="openAddUserModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
+          <line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/>
+        </svg>
+        Add Teacher or Admin
+      </button>
+    </div>
+    <div class="manage-table-wrap">
+      <table class="manage-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role / Class</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="manage-tbody"></tbody>
+      </table>
+    </div>
+
+
+    <p style="font-size:0.7rem;color:var(--muted);margin-top:12px;line-height:1.6">
+      ✏️ Manage teachers and admins. Teachers log in via the main
+      <a href="index.html" style="color:var(--accent)">Attendance Login</a> page; admins via the
+      <a href="admin.html" style="color:var(--amber)">Admin Login</a> page.
+      Changes are saved in this browser session.
+    </p>
+
+  </div>
+
+</div><!-- /.shell -->
+
+<!-- ── Edit Mapping Modal ──────────────────────── -->
+<div class="modal-overlay" id="edit-mapping-modal" onclick="handleMappingOverlayClick(event)">
+  <div class="modal-sheet">
+    <div class="modal-title">✏️ Edit User</div>
+    <div class="modal-field">
+      <label>Name</label>
+      <input class="modal-input" id="edit-teacher-name" type="text" placeholder="e.g. Ms. Smith" maxlength="60" />
+    </div>
+    <div class="modal-field">
+      <label>Email</label>
+      <input class="modal-input" id="edit-teacher-email" type="email" placeholder="teacher@school.edu" maxlength="80" />
+    </div>
+    <div class="modal-field">
+      <label>Role</label>
+      <select class="modal-input" id="edit-user-role">
+        <option value="teacher">Teacher</option>
+        <option value="admin">Admin</option>
+        <option value="superadmin">Super Admin</option>
+      </select>
+    </div>
+    <div class="modal-field" id="edit-class-field">
+      <label>Assigned Class</label>
+      <select class="modal-input" id="edit-class-select">
+        <option value="">— None —</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveMappingEdit()">Save</button>
+      <button class="btn" onclick="closeMappingModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add User Modal ─────────────────────────── -->
+<div class="modal-overlay" id="add-user-modal" onclick="handleAddUserOverlayClick(event)">
+  <div class="modal-sheet">
+    <div class="modal-title">➕ Add Teacher or Admin</div>
+    <div class="modal-field">
+      <label>Full Name</label>
+      <input class="modal-input" id="add-user-name" type="text" placeholder="e.g. Mr. Johnson" maxlength="60" />
+    </div>
+    <div class="modal-field">
+      <label>Email</label>
+      <input class="modal-input" id="add-user-email" type="email" placeholder="user@school.edu" maxlength="80" />
+    </div>
+    <div class="modal-field">
+      <label>Role</label>
+      <select class="modal-input" id="add-user-role" onchange="onAddRoleChange()">
+        <option value="teacher">Teacher</option>
+        <option value="admin">Admin</option>
+        <option value="superadmin">Super Admin</option>
+      </select>
+    </div>
+    <div class="modal-field" id="add-class-field">
+      <label>Assign to Class</label>
+      <select class="modal-input" id="add-user-class" onchange="onAddClassChange()">
+        <option value="">— None (unassigned) —</option>
+      </select>
+    </div>
+    <div class="modal-field" id="add-new-class-field" style="display:none">
+      <label>New Class Name</label>
+      <input class="modal-input" id="add-new-class-name" type="text" placeholder="e.g. Primary C" maxlength="50" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="confirmAddUser()">Add</button>
+      <button class="btn" onclick="closeAddUserModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<!-- CDN Libraries -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+// ── Auth guard ────────────────────────────────────
+if (!sessionStorage.getItem('adminAuthenticated')) {
+  location.replace('admin.html');
+}
+
+// ── Role detection ────────────────────────────────
+const _adminEmail = sessionStorage.getItem('adminEmail') || 'admin';
+const _adminRole  = sessionStorage.getItem('adminRole') || 'admin'; // 'admin' | 'superadmin'
+const IS_SUPER_ADMIN = _adminRole === 'superadmin';
+
+document.getElementById('admin-email-sub').textContent = `Logged in as ${_adminEmail}`;
+
+// Set pill label and colour based on role
+const _pill = document.getElementById('role-pill');
+const _pillLabel = document.getElementById('role-pill-label');
+if (IS_SUPER_ADMIN) {
+  _pill.classList.add('superadmin');
+  _pillLabel.textContent = 'Super Admin';
+} else {
+  _pillLabel.textContent = 'Admin';
+}
+
+// Show Manage Access tab only for Super Admins
+if (IS_SUPER_ADMIN) {
+  document.getElementById('tab-btn-manage').style.display = '';
+}
+
+// ── Class Mappings (source of truth) ─────────────
+// Edit these to match real class/teacher/email data.
+// Overrides stored in sessionStorage will be merged at runtime.
+const DEFAULT_MAPPINGS = [
+  {
+    id: 'beginner_a', name: 'Beginner A',
+    teacher: 'Ms. Johnson', email: 'johnson@vbs2026.com',
+    students: ['Liam P','Emma R','Noah W','Olivia M','Aiden T','Sophia L','Lucas H','Ava C','Jackson B','Isabella F','Mia D','Ethan K','Charlotte G','Mason S','Amelia N','Logan Y','Harper X','Elijah Q','Evelyn Z','Benjamin V']
+  },
+  {
+    id: 'beginner_b', name: 'Beginner B',
+    teacher: 'Mr. Carter', email: 'carter@vbs2026.com',
+    students: ['James A','Luna E','Oliver I','Grace U','Henry O','Chloe P','Sebastian R','Penelope S','Jack T','Layla U','Daniel V','Riley W','Michael X','Zoey Y','Owen Z','Nora A','Samuel B','Lily C','William D','Eleanor E']
+  },
+  {
+    id: 'primary_a', name: 'Primary A',
+    teacher: 'Ms. Patel', email: 'patel@vbs2026.com',
+    students: ['Alice Johnson','Bob Smith','Charlie Brown','Diana Prince','Ethan Hunt','Fiona Green','George Miller','Hannah White','Ivan Torres','Julia Roberts']
+  },
+  {
+    id: 'primary_b', name: 'Primary B',
+    teacher: 'Mr. Davis', email: 'davis@vbs2026.com',
+    students: ['Victor Reyes','Wendy Chang','Xander Fox','Yara Ahmed','Zoe Clark','Aaron Bass','Bella Cruz','Carlos Ngan','Daisy Hill','Eddie Park','Frank Lane','Grace Kim']
+  },
+  {
+    id: 'junior', name: 'Junior',
+    teacher: 'Ms. Rivera', email: 'rivera@vbs2026.com',
+    students: ['Peter G','Quinn A','Rachel S','Sam L','Tina T','Uma P','Vera J','Walter N','Xena O','Yusuf M','Zara B','Andrew C','Brianna D','Cameron E','Destiny F']
+  },
+  {
+    id: 'teen', name: 'Teen',
+    teacher: 'Mr. Thompson', email: 'thompson@vbs2026.com',
+    students: ['Alex R','Blake S','Casey T','Drew U','Ellis V','Finley W','Gray X','Harper Y','Indigo Z','Jordan A','Kai B','Lee C','Morgan D']
+  },
+];
+
+// Load overrides from sessionStorage
+function loadMappings() {
+  try {
+    const raw = sessionStorage.getItem('mappingOverrides');
+    if (!raw) return JSON.parse(JSON.stringify(DEFAULT_MAPPINGS));
+    const overrides = JSON.parse(raw); // { id: { teacher, email } }
+    return DEFAULT_MAPPINGS.map(cls => {
+      const ov = overrides[cls.id];
+      if (!ov) return { ...cls };
+      return { ...cls, teacher: ov.teacher ?? cls.teacher, email: ov.email ?? cls.email };
+    });
+  } catch { return JSON.parse(JSON.stringify(DEFAULT_MAPPINGS)); }
+}
+let CLASS_MAPPINGS = loadMappings();
+
+// ── Date range ────────────────────────────────────
+// JavaScript months are 0-indexed: 3 = April, 4 = May
+const RANGE_START = new Date(2026, 3, 25); // April 25
+const RANGE_END   = new Date(2026, 4, 3);  // May 3
+const DAYS = [];
+for (let d = new Date(RANGE_START); d <= RANGE_END; d.setDate(d.getDate() + 1)) {
+  DAYS.push(new Date(d));
+}
+const _todayNorm = new Date(); _todayNorm.setHours(0,0,0,0);
+const _todayIdx  = DAYS.findIndex(d => d.getTime() === _todayNorm.getTime());
+const TODAY_IDX  = _todayIdx !== -1 ? _todayIdx : DAYS.length - 1;
+
+let activeDay = TODAY_IDX;
+let viewMode  = 'single'; // 'single' | 'all'
+
+const DAY_LABELS  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const MONTH_ABBR  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ── Simulated attendance data ─────────────────────
+// In production, this would be read from a shared DB or localStorage keys
+// written by attendance.html. Here we seed random data for demonstration.
+const simAtt = {};
+CLASS_MAPPINGS.forEach(cls => {
+  simAtt[cls.id] = {};
+  DAYS.forEach(d => {
+    const key = dateKey(d);
+    simAtt[cls.id][key] = {};
+    cls.students.forEach(s => { simAtt[cls.id][key][s] = Math.random() > 0.18; });
+  });
+});
+
+// ── Helpers ───────────────────────────────────────
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ── Theme ─────────────────────────────────────────
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  document.getElementById('icon-moon').style.display = isLight ? 'none' : '';
+  document.getElementById('icon-sun').style.display  = isLight ? '' : 'none';
+  document.getElementById('theme-label').textContent = isLight ? 'Light' : 'Dark';
+}
+
+// ── Logout ────────────────────────────────────────
+function adminLogout() {
+  sessionStorage.removeItem('adminAuthenticated');
+  sessionStorage.removeItem('adminEmail');
+  location.href = 'admin.html';
+}
+
+// ── Tabs ──────────────────────────────────────────
+function switchTab(tab) {
+  // Guard: only superadmin can access manage tab
+  if (tab === 'manage' && !IS_SUPER_ADMIN) { showToast('⛔ Super Admin access only'); return; }
+
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (tab === 'attendance') document.querySelector('.tab-btn:first-child').classList.add('active');
+  if (tab === 'manage') document.getElementById('tab-btn-manage').classList.add('active');
+
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  if (tab === 'manage') renderManageTable();
+}
+
+// ── Populate class dropdown ───────────────────────
+function buildClassDropdown() {
+  const sel = document.getElementById('class-select');
+  sel.innerHTML = '<option value="ALL">All Classes</option>';
+  CLASS_MAPPINGS.forEach(cls => {
+    const opt = document.createElement('option');
+    opt.value = cls.id;
+    opt.textContent = `${cls.name} — ${cls.teacher}`;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Date strip ────────────────────────────────────
+function buildDateStrip() {
+  const strip = document.getElementById('date-strip');
+  strip.innerHTML = '';
+  DAYS.forEach((d, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'date-cell' + (idx === TODAY_IDX ? ' today' : '') + (idx === activeDay ? ' active' : '');
+    cell.innerHTML = `<span class="day-label">${DAY_LABELS[d.getDay()]}</span><div class="day-num">${d.getDate()}</div>`;
+    cell.addEventListener('click', () => { activeDay = idx; buildDateStrip(); renderReport(); });
+    strip.appendChild(cell);
+  });
+}
+
+// ── View mode ─────────────────────────────────────
+function setViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('btn-single-date').classList.toggle('active', mode === 'single');
+  document.getElementById('btn-all-dates').classList.toggle('active', mode === 'all');
+  renderReport();
+}
+
+// ── onClassChange ─────────────────────────────────
+function onClassChange() { renderReport(); }
+
+// ── Render report ─────────────────────────────────
+function renderReport() {
+  const selectedId = document.getElementById('class-select').value;
+  const key = dateKey(DAYS[activeDay]);
+  const output = document.getElementById('report-output');
+
+  let grandPresent = 0, grandAbsent = 0, grandTotal = 0;
+
+  if (selectedId === 'ALL') {
+    // Render each class as a separate section
+    output.innerHTML = '';
+    CLASS_MAPPINGS.forEach(cls => {
+      const { section, present, absent, total } = buildClassSection(cls, key);
+      grandPresent += present; grandAbsent += absent; grandTotal += total;
+      output.appendChild(section);
+    });
+  } else {
+    const cls = CLASS_MAPPINGS.find(c => c.id === selectedId);
+    if (!cls) return;
+      const { section, present, absent, total } = buildClassSection(cls, key);
+      grandPresent += present; grandAbsent += absent; grandTotal += total;
+    output.innerHTML = '';
+    output.appendChild(section);
+  }
+
+  document.getElementById('sum-present').textContent = grandPresent;
+  document.getElementById('sum-absent').textContent  = grandAbsent;
+  document.getElementById('sum-total').textContent   = grandTotal;
+}
+
+function buildClassSection(cls, key) {
+  const attData = (simAtt[cls.id] || {})[key] || {};
+  const present = cls.students.filter(s => !!attData[s]).length;
+  const absent  = cls.students.length - present;
+  const total   = cls.students.length;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'class-section-wrap';
+
+  // Class header
+  const hdr = document.createElement('div');
+  hdr.className = 'class-section-header';
+  hdr.innerHTML = `
+    <div>
+      <div class="class-section-name">${cls.name}</div>
+      <div class="class-section-teacher">👤 ${cls.teacher} &nbsp;·&nbsp; ${cls.email}</div>
+    </div>
+    <span class="class-section-badge">${present} / ${total} present</span>
+  `;
+  wrap.appendChild(hdr);
+
+  // Determine which days to render
+  const daysToShow = viewMode === 'single' ? [DAYS[activeDay]] : DAYS;
+  const showTotal  = viewMode === 'all';
+
+  // Table
+  const scrollDiv = document.createElement('div');
+  scrollDiv.className = 'table-scroll';
+
+  const table = document.createElement('table');
+  table.className = 'att-table';
+
+  // Build header
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  const th0 = document.createElement('th');
+  th0.textContent = 'Student'; th0.style.textAlign = 'left';
+  headerRow.appendChild(th0);
+
+  daysToShow.forEach((d, i) => {
+    const th = document.createElement('th');
+    th.textContent = `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
+    // In 'all' mode, highlight the active day column
+    if (viewMode === 'all' && i === activeDay) th.classList.add('col-active');
+    // In 'single' mode the one column is always the active day — still highlight
+    if (viewMode === 'single') th.classList.add('col-active');
+    headerRow.appendChild(th);
+  });
+
+  if (showTotal) {
+    const thTotal = document.createElement('th');
+    thTotal.textContent = 'Total'; headerRow.appendChild(thTotal);
+  }
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Build body
+  const tbody = document.createElement('tbody');
+  cls.students.forEach(name => {
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td');
+    tdName.textContent = name; tr.appendChild(tdName);
+    let studentPresent = 0;
+    daysToShow.forEach((d, i) => {
+      const att = (simAtt[cls.id] || {})[dateKey(d)] || {};
+      const isP = !!att[name];
+      if (isP) studentPresent++;
+      const td = document.createElement('td');
+      td.className = isP ? 'cell-p' : (att[name] === false ? 'cell-a' : 'cell-dash');
+      // Highlight active column in 'all' mode
+      if (viewMode === 'all' && i === activeDay) td.classList.add('col-active');
+      if (viewMode === 'single') td.classList.add('col-active');
+      td.textContent = isP ? '✅' : (att[name] === false ? '❌' : '—');
+      tr.appendChild(td);
+    });
+    if (showTotal) {
+      const tdTot = document.createElement('td');
+      tdTot.textContent = studentPresent;
+      tr.appendChild(tdTot);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  scrollDiv.appendChild(table);
+  wrap.appendChild(scrollDiv);
+
+  return { section: wrap, present, absent, total };
+}
+
+// ── Export All — Excel ────────────────────────────
+function exportAllExcel() {
+  try {
+    const wb = XLSX.utils.book_new();
+    const selectedId = document.getElementById('class-select').value;
+    const classesToExport = selectedId === 'ALL'
+      ? CLASS_MAPPINGS
+      : CLASS_MAPPINGS.filter(c => c.id === selectedId);
+
+    const daysToExport = viewMode === 'single' ? [DAYS[activeDay]] : DAYS;
+
+    classesToExport.forEach(cls => {
+      const dateCols = daysToExport.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`);
+      const headers = viewMode === 'all'
+        ? ['Student', ...dateCols, 'Total Days Present', '']
+        : ['Student', ...dateCols];
+
+      const rows = cls.students.map(name => {
+        const dayValues = daysToExport.map(d => {
+          const att = (simAtt[cls.id] || {})[dateKey(d)] || {};
+          return att[name] === true ? '✅' : att[name] === false ? '❌' : '';
+        });
+        if (viewMode === 'all') {
+          const total = dayValues.filter(v => v === '✅').length;
+          return [name, ...dayValues, total, ''];
+        }
+        return [name, ...dayValues];
+      });
+
+      const wsData = [
+        [`Class: ${cls.name}  |  Teacher: ${cls.teacher}  |  Email: ${cls.email}`],
+        [],
+        headers,
+        ...rows
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = viewMode === 'all'
+        ? [{ wch: 22 }, ...daysToExport.map(() => ({ wch: 7 })), { wch: 18 }, { wch: 5 }]
+        : [{ wch: 22 }, ...daysToExport.map(() => ({ wch: 14 }))];
+
+      // Style info row
+      const infoCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+      if (ws[infoCell]) ws[infoCell].s = { font: { bold: true, sz: 11 } };
+
+      // Style header row (row index 2)
+      const totalColIdx = viewMode === 'all' ? headers.length - 2 : -1;
+      headers.forEach((_, ci) => {
+        if (viewMode === 'all' && ci === headers.length - 1) return; // skip padding col
+        const ref = XLSX.utils.encode_cell({ r: 2, c: ci });
+        if (!ws[ref]) return;
+        ws[ref].s = {
+          font: { bold: true, color: { rgb: 'FFFFFF' } },
+          fill: { fgColor: { rgb: '6C63FF' } },
+          alignment: { horizontal: ci === 0 ? 'left' : 'center' }
+        };
+      });
+
+      // Style data rows (starting row index 3)
+      rows.forEach((row, ri) => {
+        row.forEach((val, ci) => {
+          const ref = XLSX.utils.encode_cell({ r: ri + 3, c: ci });
+          if (!ws[ref]) return;
+          if (val === '✅' || val === '❌') {
+            ws[ref].s = { alignment: { horizontal: 'center' } };
+          } else if (totalColIdx > 0 && ci === totalColIdx) {
+            ws[ref].s = { font: { bold: true }, fill: { fgColor: { rgb: 'DCFCE7' } }, alignment: { horizontal: 'center' } };
+          }
+        });
+      });
+
+      const sheetName = cls.name.slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    const suffix = viewMode === 'single'
+      ? `_${dateKey(DAYS[activeDay])}`
+      : '_all_dates';
+    const filename = selectedId === 'ALL'
+      ? `vbs2026_all_attendance${suffix}.xlsx`
+      : `vbs2026_${selectedId}_attendance${suffix}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    showToast('✅ Excel downloaded');
+  } catch (e) { showToast('❌ Export failed'); console.error(e); }
+}
+
+// ── Export All — PDF ──────────────────────────────
+function exportAllPDF() {
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const selectedId = document.getElementById('class-select').value;
+    const classesToExport = selectedId === 'ALL'
+      ? CLASS_MAPPINGS
+      : CLASS_MAPPINGS.filter(c => c.id === selectedId);
+
+    const daysToExport = viewMode === 'single' ? [DAYS[activeDay]] : DAYS;
+    let startY = 10;
+
+    classesToExport.forEach((cls, clsIdx) => {
+      if (clsIdx > 0) { doc.addPage(); startY = 10; }
+
+      doc.setFontSize(13); doc.setTextColor(40);
+      doc.text(`${cls.name}  —  ${cls.teacher}`, 14, startY + 8);
+      doc.setFontSize(8); doc.setTextColor(120);
+      doc.text(`${cls.email}   |   Generated: ${new Date().toLocaleString()}`, 14, startY + 14);
+
+      const dateCols = daysToExport.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`);
+      const headers = viewMode === 'all'
+        ? ['Student', ...dateCols, 'Total']
+        : ['Student', ...dateCols];
+
+      const rows = cls.students.map(name => {
+        const dayValues = daysToExport.map(d => {
+          const att = (simAtt[cls.id] || {})[dateKey(d)] || {};
+          return att[name] === true ? 'P' : att[name] === false ? 'A' : '-';
+        });
+        if (viewMode === 'all') {
+          const total = dayValues.filter(v => v === 'P').length;
+          return [name, ...dayValues, total];
+        }
+        return [name, ...dayValues];
+      });
+
+      const totalColIdx = viewMode === 'all' ? headers.length - 1 : -1;
+
+      // In 'all' mode, which column index is the active day? (offset +1 for Student column)
+      const activeDayColPdfIdx = viewMode === 'all' ? activeDay + 1 : 1; // in single mode the 1 column is active
+
+      doc.autoTable({
+        head: [headers],
+        body: rows,
+        startY: startY + 18,
+        styles: { fontSize: 7, cellPadding: 1.8, halign: 'center' },
+        headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { cellWidth: 34, halign: 'left' },
+          ...(totalColIdx > 0 ? { [totalColIdx]: { cellWidth: 12, fontStyle: 'bold', fillColor: [238, 240, 245] } } : {})
+        },
+        didParseCell: (data) => {
+          // Highlight active day column header
+          if (data.section === 'head' && data.column.index === activeDayColPdfIdx) {
+            data.cell.styles.fillColor = [80, 60, 220];
+          }
+          // Highlight active day column body cells
+          if (data.section === 'body' && data.column.index === activeDayColPdfIdx) {
+            if (data.cell.raw === 'P') {
+              data.cell.styles.fillColor = [180, 255, 210];
+              data.cell.styles.textColor = [21, 128, 61];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (data.cell.raw === 'A') {
+              data.cell.styles.fillColor = [255, 190, 190];
+              data.cell.styles.textColor = [185, 28, 28];
+              data.cell.styles.fontStyle = 'bold';
+            }
+            return;
+          }
+          if (data.section === 'body' && data.column.index > 0 && data.column.index < (totalColIdx > 0 ? totalColIdx : Infinity)) {
+            if (data.cell.raw === 'P') {
+              data.cell.styles.fillColor = [220, 252, 231];
+              data.cell.styles.textColor = [21, 128, 61];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (data.cell.raw === 'A') {
+              data.cell.styles.fillColor = [254, 226, 226];
+              data.cell.styles.textColor = [185, 28, 28];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (data.cell.raw === '-') {
+              data.cell.styles.textColor = [180, 180, 180];
+            }
+          }
+        }
+      });
+    });
+
+    const suffix = viewMode === 'single'
+      ? `_${dateKey(DAYS[activeDay])}`
+      : '_all_dates';
+    const filename = selectedId === 'ALL'
+      ? `vbs2026_all_attendance${suffix}.pdf`
+      : `vbs2026_${selectedId}_attendance${suffix}.pdf`;
+    doc.save(filename);
+    showToast('✅ PDF downloaded');
+  } catch (e) { showToast('❌ Export failed'); console.error(e); }
+}
+
+// ── User registry ─────────────────────────────────
+// Each entry: { id, name, email, role: 'teacher'|'admin', classId: string|null }
+function loadUsers() {
+  try {
+    const raw = sessionStorage.getItem('userRegistry');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  // Build default list from class mappings
+  const defaults = CLASS_MAPPINGS.map(cls => ({
+    id: cls.id,
+    name: cls.teacher,
+    email: cls.email,
+    role: 'teacher',
+    classId: cls.id
+  }));
+  // Add default admin and superadmin
+  defaults.push({ id: 'admin_default', name: 'Admin', email: 'admin@vbs2026.com', role: 'admin', classId: null });
+  defaults.push({ id: 'superadmin_default', name: 'Super Admin', email: 'superadmin@vbs2026.com', role: 'superadmin', classId: null });
+  return defaults;
+}
+function saveUsers(users) {
+  sessionStorage.setItem('userRegistry', JSON.stringify(users));
+}
+let USERS = loadUsers();
+
+// ── Manage Access Table ───────────────────────────
+function renderManageTable() {
+  CLASS_MAPPINGS = loadMappings();
+  USERS = loadUsers();
+  const tbody = document.getElementById('manage-tbody');
+  tbody.innerHTML = '';
+
+  USERS.forEach((user, idx) => {
+    const cls = user.classId ? CLASS_MAPPINGS.find(c => c.id === user.classId) : null;
+    const roleLabel = user.role === 'superadmin'
+      ? `<span class="role-badge superadmin">👑 Super Admin</span>`
+      : user.role === 'admin'
+        ? `<span class="role-badge admin">🛡️ Admin</span>`
+        : `<span class="role-badge teacher">📚 Teacher</span>`;
+    const classInfo = cls
+      ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:3px">${cls.name}</div>`
+      : '';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="teacher-name">${user.name}</div></td>
+      <td><div class="teacher-email">${user.email}</div></td>
+      <td>${roleLabel}${classInfo}</td>
+      <td style="white-space:nowrap">
+        <button class="row-edit-btn" onclick="openMappingEdit(${idx})" style="margin-right:4px">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+        <button class="row-delete-btn" onclick="deleteUser(${idx})">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+          Delete
+        </button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Populate class dropdowns in modals ────────────
+function populateClassDropdown(selectId, selectedClassId, includeNewClass) {
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '<option value="">— None (unassigned) —</option>';
+  CLASS_MAPPINGS.forEach(cls => {
+    const opt = document.createElement('option');
+    opt.value = cls.id;
+    opt.textContent = cls.name;
+    if (cls.id === selectedClassId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (includeNewClass) {
+    const opt = document.createElement('option');
+    opt.value = '__new__';
+    opt.textContent = '➕ Create new class…';
+    sel.appendChild(opt);
+  }
+}
+
+// ── Edit user modal ───────────────────────────────
+let _editingUserIdx = -1;
+function openMappingEdit(idx) {
+  _editingUserIdx = idx;
+  const user = USERS[idx];
+  document.getElementById('edit-teacher-name').value  = user.name;
+  document.getElementById('edit-teacher-email').value = user.email;
+  document.getElementById('edit-user-role').value     = user.role;
+  populateClassDropdown('edit-class-select', user.classId || '', false);
+  const isTeacherEdit = (user.role === 'teacher');
+  document.getElementById('edit-class-field').style.display = isTeacherEdit ? '' : 'none';
+  document.getElementById('edit-mapping-modal').classList.add('open');
+
+  // Show/hide class field on role change
+  document.getElementById('edit-user-role').onchange = () => {
+    const r = document.getElementById('edit-user-role').value;
+    document.getElementById('edit-class-field').style.display = r === 'teacher' ? '' : 'none';
+  };
+
+  setTimeout(() => document.getElementById('edit-teacher-name').focus(), 100);
+}
+function closeMappingModal() { document.getElementById('edit-mapping-modal').classList.remove('open'); }
+function handleMappingOverlayClick(e) { if (e.target.id === 'edit-mapping-modal') closeMappingModal(); }
+
+function saveMappingEdit() {
+  const newName  = document.getElementById('edit-teacher-name').value.trim();
+  const newEmail = document.getElementById('edit-teacher-email').value.trim();
+  const newRole  = document.getElementById('edit-user-role').value;
+  const newClass = newRole === 'teacher' ? (document.getElementById('edit-class-select').value || null) : null;
+
+  if (!newName) { showToast('⚠️ Name required'); return; }
+  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    showToast('⚠️ Valid email required'); return;
+  }
+  USERS[_editingUserIdx] = { ...USERS[_editingUserIdx], name: newName, email: newEmail, role: newRole, classId: newClass };
+  saveUsers(USERS);
+
+  // Also update CLASS_MAPPINGS teacher info if applicable
+  if (newClass) {
+    let overrides = {};
+    try { overrides = JSON.parse(sessionStorage.getItem('mappingOverrides') || '{}'); } catch {}
+    overrides[newClass] = { teacher: newName, email: newEmail };
+    sessionStorage.setItem('mappingOverrides', JSON.stringify(overrides));
+    CLASS_MAPPINGS = loadMappings();
+    buildClassDropdown();
+  }
+
+  renderManageTable();
+  closeMappingModal();
+  showToast('✅ User updated');
+}
+
+// ── Delete user ───────────────────────────────────
+function deleteUser(idx) {
+  const user = USERS[idx];
+  if (!confirm(`Remove "${user.name}" (${user.email}) from access?\nThis cannot be undone.`)) return;
+  USERS.splice(idx, 1);
+  saveUsers(USERS);
+  renderManageTable();
+  showToast(`🗑️ Removed ${user.name}`);
+}
+
+// ── Add user modal ────────────────────────────────
+function openAddUserModal() {
+  document.getElementById('add-user-name').value  = '';
+  document.getElementById('add-user-email').value = '';
+  document.getElementById('add-user-role').value  = 'teacher';
+  populateClassDropdown('add-user-class', '', true);
+  document.getElementById('add-class-field').style.display = '';
+  document.getElementById('add-new-class-field').style.display = 'none';
+  document.getElementById('add-new-class-name').value = '';
+  document.getElementById('add-user-modal').classList.add('open');
+  setTimeout(() => document.getElementById('add-user-name').focus(), 100);
+}
+function closeAddUserModal() { document.getElementById('add-user-modal').classList.remove('open'); }
+function handleAddUserOverlayClick(e) { if (e.target.id === 'add-user-modal') closeAddUserModal(); }
+function onAddRoleChange() {
+  const r = document.getElementById('add-user-role').value;
+  const isTeacher = r === 'teacher';
+  document.getElementById('add-class-field').style.display = isTeacher ? '' : 'none';
+  if (!isTeacher) {
+    document.getElementById('add-new-class-field').style.display = 'none';
+  } else {
+    onAddClassChange();
+  }
+}
+function onAddClassChange() {
+  const val = document.getElementById('add-user-class').value;
+  document.getElementById('add-new-class-field').style.display = val === '__new__' ? '' : 'none';
+  if (val === '__new__') {
+    setTimeout(() => document.getElementById('add-new-class-name').focus(), 50);
+  }
+}
+
+function confirmAddUser() {
+  const name    = document.getElementById('add-user-name').value.trim();
+  const email   = document.getElementById('add-user-email').value.trim();
+  const role    = document.getElementById('add-user-role').value;
+  let classId   = role === 'teacher' ? (document.getElementById('add-user-class').value || null) : null;
+  let newClassName = '';
+
+  if (!name) { showToast('⚠️ Name required'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('⚠️ Valid email required'); return;
+  }
+  if (USERS.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+    showToast('⚠️ Email already exists'); return;
+  }
+
+  // Handle new class creation
+  if (classId === '__new__') {
+    newClassName = document.getElementById('add-new-class-name').value.trim();
+    if (!newClassName) { showToast('⚠️ Please enter a class name'); return; }
+    // Check if class name already exists (case-insensitive)
+    if (CLASS_MAPPINGS.some(c => c.name.toLowerCase() === newClassName.toLowerCase())) {
+      showToast('⚠️ Class already exists'); return;
+    }
+    // Generate a unique id
+    classId = 'class_' + newClassName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
+    // Add new class to CLASS_MAPPINGS and simAtt
+    const newCls = {
+      id: classId,
+      name: newClassName,
+      teacher: name,
+      email: email,
+      students: []
+    };
+    DEFAULT_MAPPINGS.push(newCls);
+    simAtt[classId] = {};
+    DAYS.forEach(d => { simAtt[classId][dateKey(d)] = {}; });
+    // Save override
+    let overrides = {};
+    try { overrides = JSON.parse(sessionStorage.getItem('mappingOverrides') || '{}'); } catch {}
+    overrides[classId] = { teacher: name, email };
+    sessionStorage.setItem('mappingOverrides', JSON.stringify(overrides));
+    CLASS_MAPPINGS = loadMappings();
+    buildClassDropdown();
+  }
+
+  const newUser = {
+    id: 'user_' + Date.now(),
+    name, email, role, classId
+  };
+  USERS.push(newUser);
+  saveUsers(USERS);
+
+  // Update mapping if teacher assigned to a class
+  if (role === 'teacher' && classId && classId !== '__new__') {
+    let overrides = {};
+    try { overrides = JSON.parse(sessionStorage.getItem('mappingOverrides') || '{}'); } catch {}
+    overrides[classId] = { teacher: name, email };
+    sessionStorage.setItem('mappingOverrides', JSON.stringify(overrides));
+    CLASS_MAPPINGS = loadMappings();
+    buildClassDropdown();
+  }
+
+  renderManageTable();
+  closeAddUserModal();
+  showToast(newClassName
+    ? `✅ Added ${name} as teacher of new class "${newClassName}"`
+    : `✅ Added ${name} as ${role}`);
+}
+
+// ── Toast ─────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ── Boot ──────────────────────────────────────────
+buildClassDropdown();
+buildDateStrip();
+renderReport();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
