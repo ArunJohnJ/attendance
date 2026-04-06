@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VBS 2026 — Attendance Count</title>
+  <link rel="stylesheet" href="https://oat.ink/components/oat.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0f11;
+      --surface: #16181c;
+      --surface-2: #1e2128;
+      --border: #2a2d35;
+      --accent: #6c63ff;
+      --green: #22c55e;
+      --green-bg: #14532d;
+      --red: #ef4444;
+      --muted: #6b7280;
+      --text: #e5e7eb;
+      --text-dim: #9ca3af;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    :root.light {
+      --bg: #f0f2f8; --surface: #ffffff; --surface-2: #eef0f5;
+      --border: #d1d5db; --accent: #6c63ff;
+      --green: #16a34a; --green-bg: #dcfce7; --red: #dc2626;
+      --muted: #6b7280; --text: #111827; --text-dim: #374151;
+    }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ──────────────────────────────── */
+    .top-bar {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 12px 5px 8px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text-dim); font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+    }
+    .back-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    .top-bar-center { flex: 1; }
+    .top-bar-title { font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .top-bar-sub { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+    .theme-toggle {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px 5px 7px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text-dim); cursor: pointer;
+      font-size: 0.72rem; font-weight: 600;
+      transition: all 0.2s; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent; white-space: nowrap;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .theme-toggle:active { transform: scale(0.93); }
+
+    /* ── Shell ────────────────────────────────── */
+    .shell { max-width: 560px; margin: 0 auto; padding: 20px 20px 60px; }
+    @media (min-width: 768px) { .shell { max-width: 720px; } }
+
+    /* ── Date Strip ───────────────────────────── */
+    .date-strip-wrap { margin-bottom: 20px; }
+    .section-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 10px;
+    }
+    .date-strip {
+      display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px;
+    }
+    @media (max-width: 360px) { .date-strip { gap: 4px; } }
+
+    .date-cell {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      cursor: pointer; user-select: none;
+    }
+    .date-cell .day-label {
+      font-size: 0.55rem; color: var(--muted); text-transform: uppercase; font-weight: 600;
+    }
+    .date-cell .day-num {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 600; transition: all 0.15s; color: var(--text-dim);
+    }
+    @media (min-width: 400px) { .date-cell .day-num { width: 32px; height: 32px; font-size: 0.78rem; } }
+    .date-cell.active .day-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .date-cell.today  .day-num { border-color: var(--accent); color: var(--text); }
+
+    /* ── Selected date heading ────────────────── */
+    .date-heading {
+      font-size: 1.05rem; font-weight: 700; margin-bottom: 6px;
+    }
+    .date-heading-sub {
+      font-size: 0.75rem; color: var(--muted); margin-bottom: 18px;
+    }
+
+    /* ── Grand total card ─────────────────────── */
+    .total-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .total-card-label { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
+    .total-card-num { font-size: 2rem; font-weight: 800; color: var(--green); line-height: 1; }
+    .total-card-sub { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Table ────────────────────────────────── */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead tr {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      padding: 10px 14px; font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+      text-align: left;
+    }
+    th:last-child { text-align: right; }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-2); }
+
+    td { padding: 12px 14px; font-size: 0.88rem; }
+    td:last-child { text-align: right; }
+
+    .class-name { font-weight: 600; }
+    .class-teacher { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+    .count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 36px; padding: 3px 10px;
+      background: var(--green-bg); color: var(--green);
+      border-radius: 999px; font-size: 0.82rem; font-weight: 700;
+    }
+
+    /* ── Empty state ──────────────────────────── */
+    .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.85rem; }
+
+    /* ── Scrollbar ────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <a class="back-btn" href="index.html">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+    Back
+  </a>
+  <div class="top-bar-center">
+    <div class="top-bar-title">📊 Attendance Count</div>
+    <div class="top-bar-sub">VBS 2026 — Read-only view</div>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" fill="#facc15" stroke="#facc15" stroke-width="1" stroke-linejoin="round"/>
+    </svg>
+    <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <circle cx="12" cy="12" r="5" fill="#fde68a" stroke="#f59e0b"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <span id="theme-label">Dark</span>
+  </button>
+</div>
+
+<div class="shell">
+
+  <!-- Date strip -->
+  <div class="date-strip-wrap">
+    <div class="section-label">Select a date</div>
+    <div class="date-strip" id="date-strip"></div>
+  </div>
+
+  <!-- Selected date heading -->
+  <div class="date-heading" id="date-heading">April 25, 2026</div>
+  <div class="date-heading-sub" id="date-sub">Showing attendance count per class</div>
+
+  <!-- Grand total -->
+  <div class="total-card">
+    <div>
+      <div class="total-card-label">Total Students Present</div>
+    </div>
+    <div style="text-align:right">
+      <div class="total-card-num" id="grand-total">—</div>
+    </div>
+  </div>
+
+  <!-- Per-class table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th style="text-align:right">Present</th>
+        </tr>
+      </thead>
+      <tbody id="stats-body"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+// ── Static class data (mirrors what attendance.html uses) ──────────
+// In a real app this would come from a shared API/DB.
+// Here we define sample classes with student counts.
+const CLASSES = [
+  { id: 'beginner_a', name: 'Beginner A',   teacher: 'Ms. Johnson',  students: ['Liam P','Emma R','Noah W','Olivia M','Aiden T','Sophia L','Lucas H','Ava C','Jackson B','Isabella F','Mia D','Ethan K','Charlotte G','Mason S','Amelia N','Logan Y','Harper X','Elijah Q','Evelyn Z','Benjamin V'] },
+  { id: 'beginner_b', name: 'Beginner B',   teacher: 'Mr. Carter',   students: ['James A','Luna E','Oliver I','Grace U','Henry O','Chloe P','Sebastian R','Penelope S','Jack T','Layla U','Daniel V','Riley W','Michael X','Zoey Y','Owen Z','Nora A','Samuel B','Lily C','William D','Eleanor E'] },
+  { id: 'primary_a',  name: 'Primary A',    teacher: 'Ms. Patel',    students: ['Alice Johnson','Bob Smith','Charlie Brown','Diana Prince','Ethan Hunt','Fiona Green','George Miller','Hannah White','Ivan Torres','Julia Roberts'] },
+  { id: 'primary_b',  name: 'Primary B',    teacher: 'Mr. Davis',    students: ['Victor Reyes','Wendy Chang','Xander Fox','Yara Ahmed','Zoe Clark','Aaron Bass','Bella Cruz','Carlos Ngan','Daisy Hill','Eddie Park','Frank Lane','Grace Kim'] },
+  { id: 'junior',     name: 'Junior',       teacher: 'Ms. Rivera',   students: ['Peter G','Quinn A','Rachel S','Sam L','Tina T','Uma P','Vera J','Walter N','Xena O','Yusuf M','Zara B','Andrew C','Brianna D','Cameron E','Destiny F'] },
+  { id: 'teen',       name: 'Teen',         teacher: 'Mr. Thompson', students: ['Alex R','Blake S','Casey T','Drew U','Ellis V','Finley W','Gray X','Harper Y','Indigo Z','Jordan A','Kai B','Lee C','Morgan D'] },
+];
+
+// ── Date range: April 25 – May 3 2026 ─────────────────────────────
+const RANGE_START = new Date(2026, 3, 25);
+const RANGE_END   = new Date(2026, 4, 3);
+const DAYS = [];
+for (let d = new Date(RANGE_START); d <= RANGE_END; d.setDate(d.getDate() + 1)) {
+  DAYS.push(new Date(d));
+}
+
+// Default to today if within range, else April 25
+const now = new Date();
+const todayNorm = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const inRange = todayNorm >= RANGE_START && todayNorm <= RANGE_END;
+const defaultIdx = inRange
+  ? DAYS.findIndex(d => d.getTime() === todayNorm.getTime())
+  : 0;
+const TODAY_RANGE_IDX = DAYS.findIndex(d => d.getTime() === todayNorm.getTime());
+
+let activeIdx = defaultIdx;
+
+// ── Simulated attendance ───────────────────────────────────────────
+// Pre-seed random data for demo purposes
+const simAttendance = {};
+CLASSES.forEach(cls => {
+  simAttendance[cls.id] = {};
+  DAYS.forEach(d => {
+    const key = dateKey(d);
+    simAttendance[cls.id][key] = {};
+    cls.students.forEach(s => {
+      simAttendance[cls.id][key][s] = Math.random() > 0.18;
+    });
+  });
+});
+
+// ── Helpers ────────────────────────────────────────────────────────
+const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ── Theme ──────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  document.getElementById('icon-moon').style.display = isLight ? 'none' : '';
+  document.getElementById('icon-sun').style.display  = isLight ? '' : 'none';
+  document.getElementById('theme-label').textContent = isLight ? 'Light' : 'Dark';
+}
+
+// ── Date strip ─────────────────────────────────────────────────────
+function buildDateStrip() {
+  const strip = document.getElementById('date-strip');
+  strip.innerHTML = '';
+  DAYS.forEach((d, idx) => {
+    const isToday = idx === TODAY_RANGE_IDX;
+    const cell = document.createElement('div');
+    cell.className = 'date-cell' + (isToday ? ' today' : '') + (idx === activeIdx ? ' active' : '');
+    cell.innerHTML = `<span class="day-label">${DAY_LABELS[d.getDay()]}</span><div class="day-num">${d.getDate()}</div>`;
+    cell.addEventListener('click', () => selectDay(idx));
+    strip.appendChild(cell);
+  });
+}
+
+function selectDay(idx) {
+  activeIdx = idx;
+  document.querySelectorAll('.date-cell').forEach((c, i) => c.classList.toggle('active', i === idx));
+  renderStats();
+}
+
+// ── Render stats table ─────────────────────────────────────────────
+function renderStats() {
+  const d   = DAYS[activeIdx];
+  const key = dateKey(d);
+
+  document.getElementById('date-heading').textContent =
+    `${MONTH_FULL[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  document.getElementById('date-sub').textContent =
+    activeIdx === TODAY_RANGE_IDX ? '📅 Today\'s attendance count per class'
+                                  : 'Attendance count per class';
+
+  const tbody = document.getElementById('stats-body');
+  tbody.innerHTML = '';
+
+  let grandPresent = 0;
+  let grandTotal   = 0;
+
+  CLASSES.forEach(cls => {
+    const att      = (simAttendance[cls.id] || {})[key] || {};
+    const present  = cls.students.filter(s => !!att[s]).length;
+    grandPresent += present;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="class-name">${cls.name}</div></td>
+      <td><span class="count-badge">${present}</span></td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('grand-total').textContent  = grandPresent;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────
+buildDateStrip();
+renderStats();
+</script>
+</body>
+</html>
+
