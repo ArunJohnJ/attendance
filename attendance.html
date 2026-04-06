@@ -542,7 +542,11 @@ const DAYS = [];
 for (let d = new Date(TODAY_START); d <= RANGE_END; d.setDate(d.getDate() + 1)) {
   DAYS.push(new Date(d));
 }
-const TODAY_IDX = DAYS.length - 1;
+
+// Find today in range; fallback to last day if today is outside range
+const _todayNorm = new Date(); _todayNorm.setHours(0,0,0,0);
+const _todayIdx  = DAYS.findIndex(d => d.getTime() === _todayNorm.getTime());
+const TODAY_IDX  = _todayIdx !== -1 ? _todayIdx : DAYS.length - 1;
 
 const attendance = {};
 let activeDay = TODAY_IDX;
