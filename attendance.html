@@ -319,6 +319,24 @@
     .present-toggle.checked { background: var(--green); border-color: var(--green); box-shadow: 0 0 0 4px rgba(34,197,94,0.15); }
     .present-toggle.checked .check-icon { opacity: 1; transform: scale(1); }
 
+    /* ── Delete / Edit student buttons ─────────── */
+    .delete-btn, .edit-btn {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .delete-btn:hover { border-color: var(--red); color: var(--red); background: #450a0a; }
+    .delete-btn:active { transform: scale(0.88); }
+    .edit-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    .edit-btn:active { transform: scale(0.88); }
+
     /* ── Buttons ────────────────────────────────── */
     .mark-all-row { display: flex; gap: 8px; margin: 0 20px 14px; }
     .btn {
@@ -503,6 +521,19 @@
   </div>
 </div>
 
+<!-- ── Edit Student Modal ─────────────────────── -->
+<div class="modal-overlay" id="edit-student-modal" onclick="handleEditModalOverlayClick(event)">
+  <div class="modal-sheet">
+    <div class="modal-title">✏️ Edit Student Name</div>
+    <input class="modal-input" id="edit-student-name" type="text" placeholder="Full name"
+           maxlength="40" onkeydown="if(event.key==='Enter')confirmEditStudent()" />
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="confirmEditStudent()">Save</button>
+      <button class="btn" onclick="closeEditStudent()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Submit Bar ────────────────────────────── -->
 <div class="submit-bar">
   <button class="submit-btn" onclick="submitAttendance()">✔ Submit Attendance</button>
@@ -670,7 +701,19 @@ function renderStudentList() {
            onclick="toggleStudent('${escHtml(name)}')" role="checkbox" aria-checked="${isPresent}" tabindex="0"
            onkeydown="if(event.key===' '||event.key==='Enter'){toggleStudent('${escHtml(name)}')}">
         <span class="check-icon">✓</span>
-      </div>`;
+      </div>
+      <button class="edit-btn" onclick="openEditStudent('${escHtml(name)}')" title="Edit name" aria-label="Edit ${escHtml(name)}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <button class="delete-btn" onclick="deleteStudent('${escHtml(name)}')" title="Remove student" aria-label="Remove ${escHtml(name)}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+        </svg>
+      </button>`;
     list.appendChild(row);
   });
   updateSummary();
@@ -749,6 +792,51 @@ function confirmAddStudent() {
   renderStudentList();
   closeAddStudent();
   showToast(`✅ Added ${name}`);
+}
+
+// ── Delete Student ────────────────────────────────
+function deleteStudent(name) {
+  if (!confirm(`Remove "${name}" from the class? This cannot be undone.`)) return;
+  const idx = CLASS.students.indexOf(name);
+  if (idx === -1) return;
+  CLASS.students.splice(idx, 1);
+  // Remove from all attendance records
+  Object.values(attendance[activeClass] || {}).forEach(dayRec => { delete dayRec[name]; });
+  updateStudentCount();
+  renderStudentList();
+  showToast(`🗑️ Removed ${name}`);
+}
+
+// ── Edit Student ──────────────────────────────────
+let _editingName = '';
+function openEditStudent(name) {
+  _editingName = name;
+  document.getElementById('edit-student-name').value = name;
+  document.getElementById('edit-student-modal').classList.add('open');
+  setTimeout(() => document.getElementById('edit-student-name').focus(), 100);
+}
+function closeEditStudent() { document.getElementById('edit-student-modal').classList.remove('open'); }
+function handleEditModalOverlayClick(e) { if (e.target.id === 'edit-student-modal') closeEditStudent(); }
+function confirmEditStudent() {
+  const input   = document.getElementById('edit-student-name');
+  const newName = input.value.trim();
+  if (!newName) { showToast('⚠️ Please enter a name'); return; }
+  if (newName === _editingName) { closeEditStudent(); return; }
+  if (CLASS.students.includes(newName)) { showToast('⚠️ Student already exists'); return; }
+  const idx = CLASS.students.indexOf(_editingName);
+  if (idx === -1) return;
+  CLASS.students[idx] = newName;
+  // Rename in all attendance records
+  Object.values(attendance[activeClass] || {}).forEach(dayRec => {
+    if (_editingName in dayRec) {
+      dayRec[newName] = dayRec[_editingName];
+      delete dayRec[_editingName];
+    }
+  });
+  updateStudentCount();
+  renderStudentList();
+  closeEditStudent();
+  showToast(`✏️ Renamed to ${newName}`);
 }
 
 // ── Build export data ─────────────────────────────
