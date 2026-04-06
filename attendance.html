@@ -750,14 +750,14 @@ function confirmAddStudent() {
 // ── Build export data ─────────────────────────────
 function buildExportRows() {
   // Excel version — uses emoji (renders fine in xlsx)
-  const headers = ['Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total Days Present'];
+  const headers = ['Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total Days Present', ''];
   const rows = CLASS.students.map(name => {
     const dayValues = DAYS.map(d => {
       const att = (attendance[activeClass] || {})[dateKey(d)] || {};
       return att[name] === true ? '✅' : att[name] === false ? '❌' : '';
     });
     const total = dayValues.filter(v => v === '✅').length;
-    return [name, ...dayValues, total];
+    return [name, ...dayValues, total, ''];
   });
   return { headers, rows };
 }
@@ -785,40 +785,44 @@ function exportExcel() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    const totalColIdx = headers.length - 1;
+    const totalColIdx = headers.length - 2; // "Total Days Present"; last col is empty padding
 
     // Column widths
     ws['!cols'] = [
       { wch: 22 },
       ...DAYS.map(() => ({ wch: 7 })),
-      { wch: 18 }
+      { wch: 18 },
+      { wch: 6 }
     ];
 
-    // Style each data cell
+    // Style header row (skip last empty padding column)
+    headers.forEach((_, ci) => {
+      if (ci === headers.length - 1) return; // skip empty padding col
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
+      if (!ws[cellRef]) return;
+      ws[cellRef].s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '6C63FF' } },
+        alignment: { horizontal: ci === 0 ? 'left' : 'center' }
+      };
+    });
+
+    // Style data rows
     rows.forEach((row, ri) => {
       row.forEach((val, ci) => {
         const cellRef = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
         if (!ws[cellRef]) return;
-        ws[cellRef].s = ws[cellRef].s || {};
-
         if (val === '✅') {
-          ws[cellRef].s = { font: { bold: true }, alignment: { horizontal: 'center' } };
+          ws[cellRef].s = { alignment: { horizontal: 'center' } };
         } else if (val === '❌') {
-          ws[cellRef].s = { font: { bold: true }, alignment: { horizontal: 'center' } };
+          ws[cellRef].s = { alignment: { horizontal: 'center' } };
         } else if (ci === totalColIdx) {
-          ws[cellRef].s = { font: { bold: true }, fill: { fgColor: { rgb: 'EEF0F5' } }, alignment: { horizontal: 'center' } };
+          ws[cellRef].s = {
+            font: { bold: true },
+            fill: { fgColor: { rgb: 'DCFCE7' } },
+            alignment: { horizontal: 'center' }
+          };
         }
-      });
-
-      // Style header row
-      headers.forEach((_, ci) => {
-        const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
-        if (!ws[cellRef]) return;
-        ws[cellRef].s = {
-          font: { bold: true, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: '6C63FF' } },
-          alignment: { horizontal: 'center' }
-        };
       });
     });
 
