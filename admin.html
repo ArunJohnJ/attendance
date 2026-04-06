@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VBS 2026 — Admin Login</title>
+  <link rel="stylesheet" href="https://oat.ink/components/oat.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0f11;
+      --surface: #16181c;
+      --surface-2: #1e2128;
+      --border: #2a2d35;
+      --accent: #6c63ff;
+      --accent-glow: rgba(108,99,255,0.25);
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --amber-bg: #451a03;
+      --muted: #6b7280;
+      --text: #e5e7eb;
+      --text-dim: #9ca3af;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    :root.light {
+      --bg: #f0f2f8; --surface: #ffffff; --surface-2: #eef0f5;
+      --border: #d1d5db; --accent: #6c63ff; --accent-glow: rgba(108,99,255,0.15);
+      --green: #16a34a; --red: #dc2626; --amber: #d97706; --amber-bg: #fef3c7;
+      --muted: #6b7280; --text: #111827; --text-dim: #374151;
+    }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+
+    .theme-toggle {
+      position: fixed; top: 16px; right: 16px;
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px 5px 7px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-dim); cursor: pointer;
+      font-size: 0.72rem; font-weight: 600;
+      transition: all 0.2s; z-index: 10;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .theme-toggle:active { transform: scale(0.93); }
+
+    .back-link {
+      position: fixed; top: 16px; left: 16px;
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 12px 5px 8px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-dim); font-size: 0.75rem; font-weight: 600;
+      text-decoration: none; transition: all 0.15s; z-index: 10;
+    }
+    .back-link:hover { border-color: var(--accent); color: var(--text); }
+
+    .login-card {
+      width: 100%; max-width: 400px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 32px 28px 28px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+    }
+    .card-logo { font-size: 2.2rem; text-align: center; margin-bottom: 6px; }
+    .card-title { font-size: 1.25rem; font-weight: 800; text-align: center; letter-spacing: -0.03em; }
+    .card-sub { font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 4px; margin-bottom: 6px; }
+
+    .admin-badge {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      background: var(--amber-bg); border: 1px solid var(--amber);
+      color: var(--amber); border-radius: var(--radius-sm);
+      padding: 6px 14px; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      margin: 0 auto 24px;
+    }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; }
+    .field input {
+      width: 100%; background: var(--surface-2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      padding: 12px 14px; font-size: 0.95rem; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .field input::placeholder { color: var(--muted); }
+
+    #otp-section { display: none; }
+    #otp-section.visible { display: block; }
+
+    .btn-full {
+      width: 100%; padding: 13px; border-radius: var(--radius-sm); border: none;
+      background: var(--accent); color: #fff;
+      font-size: 0.95rem; font-weight: 700; cursor: pointer;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent; margin-top: 4px;
+    }
+    .btn-full:hover { opacity: 0.92; }
+    .btn-full:active { transform: scale(0.97); }
+    .btn-full:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-text {
+      background: none; border: none; color: var(--accent);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      padding: 0; margin-top: 10px; display: block; text-align: center; width: 100%;
+    }
+    .btn-text:hover { text-decoration: underline; }
+
+    .otp-hint {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      font-size: 0.78rem; color: var(--text-dim);
+      margin-bottom: 14px; line-height: 1.5; display: none;
+    }
+    .otp-hint.visible { display: block; }
+    .otp-hint strong { color: var(--accent); font-size: 1rem; letter-spacing: 0.12em; }
+
+    .err-msg { color: var(--red); font-size: 0.75rem; font-weight: 600; margin-top: 8px; min-height: 18px; text-align: center; }
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    .toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); padding: 10px 20px; border-radius: 999px;
+      font-size: 0.82rem; font-weight: 600; opacity: 0;
+      transition: all 0.25s ease; pointer-events: none; white-space: nowrap; z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<a class="back-link" href="index.html">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+  Back
+</a>
+
+<button class="theme-toggle" onclick="toggleTheme()">
+  <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" fill="#facc15" stroke="#facc15" stroke-width="1" stroke-linejoin="round"/>
+  </svg>
+  <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+    <circle cx="12" cy="12" r="5" fill="#fde68a" stroke="#f59e0b"/>
+    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+  <span id="theme-label">Dark</span>
+</button>
+
+<div class="login-card">
+  <div class="card-logo">🛡️</div>
+  <div class="card-title">VBS 2026 Admin</div>
+  <div class="admin-badge">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+    Restricted Access
+  </div>
+
+  <div class="field">
+    <label for="email-input">Admin Email address</label>
+    <input type="email" id="email-input" placeholder="you@organization.com"
+           autocomplete="email" autocapitalize="none"
+           onkeydown="if(event.key==='Enter')sendOtp()" />
+  </div>
+
+  <button class="btn-full" id="send-otp-btn" onclick="sendOtp()">Send OTP →</button>
+
+  <div class="divider" id="divider-1" style="display:none"></div>
+
+  <div id="otp-section">
+    <div class="otp-hint" id="otp-hint">
+      📨 OTP sent to your email. Your demo code is: <strong id="otp-display">------</strong>
+    </div>
+    <div class="field">
+      <label for="otp-input">Enter 6-digit OTP</label>
+      <input type="text" id="otp-input" placeholder="e.g. 483920"
+             maxlength="6" inputmode="numeric" pattern="[0-9]*"
+             autocomplete="one-time-code"
+             onkeydown="if(event.key==='Enter')verifyOtp()" />
+    </div>
+    <button class="btn-full" id="verify-btn" onclick="verifyOtp()">Verify &amp; Enter Dashboard</button>
+    <button class="btn-text" onclick="resendOtp()">Resend OTP</button>
+  </div>
+
+  <div class="err-msg" id="err-msg"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Role whitelists ───────────────────────────────
+// SuperAdmins: full access including Manage Access tab
+const SUPER_ADMIN_EMAILS = [
+  'superadmin@vbs2026.com',
+  'director@vbs2026.com',
+  // Add more super-admin emails here
+];
+
+// Admins: can view attendance reports but NOT Manage Access
+const ADMIN_EMAILS = [
+  'admin@vbs2026.com',
+  'head@vbs2026.com',
+  // Add more admin emails here
+];
+
+if (sessionStorage.getItem('adminAuthenticated')) location.replace('admin-dashboard.html');
+
+let generatedOtp = '';
+let otpEmail = '';
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  document.getElementById('icon-moon').style.display = isLight ? 'none' : '';
+  document.getElementById('icon-sun').style.display  = isLight ? '' : 'none';
+  document.getElementById('theme-label').textContent = isLight ? 'Light' : 'Dark';
+}
+
+function sendOtp() {
+  const email = document.getElementById('email-input').value.trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setError('Please enter a valid email address.'); return;
+  }
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+  const isAdmin      = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+  if (!isSuperAdmin && !isAdmin) {
+    setError('Access denied. This email is not authorized for admin access.'); return;
+  }
+  setError('');
+  otpEmail = email;
+  // Store role temporarily so verifyOtp can use it
+  window._pendingRole = isSuperAdmin ? 'superadmin' : 'admin';
+  generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
+
+  document.getElementById('otp-section').classList.add('visible');
+  document.getElementById('otp-hint').classList.add('visible');
+  document.getElementById('otp-display').textContent = generatedOtp;
+  document.getElementById('divider-1').style.display = '';
+  document.getElementById('send-otp-btn').textContent = '✓ OTP Sent';
+  document.getElementById('send-otp-btn').disabled = true;
+  document.getElementById('email-input').disabled  = true;
+  setTimeout(() => document.getElementById('otp-input').focus(), 100);
+  showToast(`📨 OTP sent to ${email}`);
+}
+
+function verifyOtp() {
+  const entered = document.getElementById('otp-input').value.trim();
+  if (!entered) { setError('Please enter the OTP.'); return; }
+  if (entered !== generatedOtp) {
+    setError('Incorrect OTP. Please try again.');
+    document.getElementById('otp-input').value = '';
+    document.getElementById('otp-input').focus(); return;
+  }
+  setError('');
+  document.getElementById('verify-btn').textContent = '✓ Verified! Entering Dashboard…';
+  document.getElementById('verify-btn').disabled = true;
+  sessionStorage.setItem('adminAuthenticated', 'true');
+  sessionStorage.setItem('adminEmail', otpEmail);
+  sessionStorage.setItem('adminRole', window._pendingRole || 'admin');
+  setTimeout(() => { location.href = 'admin-dashboard.html'; }, 800);
+}
+
+function resendOtp() {
+  if (!otpEmail) return;
+  generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
+  document.getElementById('otp-display').textContent = generatedOtp;
+  document.getElementById('otp-input').value = '';
+  document.getElementById('otp-input').focus();
+  setError('');
+  showToast('🔄 New OTP generated');
+}
+
+function setError(msg) { document.getElementById('err-msg').textContent = msg; }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
+
