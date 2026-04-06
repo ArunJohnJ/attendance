@@ -301,7 +301,18 @@
       transition: all 0.12s ease; cursor: pointer;
     }
     .habit-dot.filled { background: var(--green); border-color: var(--green); }
-    .habit-dot.today-dot { border-color: var(--accent); }
+    .habit-dot.today-dot {
+      border-color: var(--accent);
+      border-width: 2px;
+      width: 11px; height: 11px;
+      box-shadow: 0 0 0 2px rgba(108,99,255,0.25);
+      border-radius: 4px;
+    }
+    .habit-dot.today-dot.filled {
+      background: var(--green);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(108,99,255,0.25);
+    }
 
     /* ── Toggle Checkbox ────────────────────────── */
     .present-toggle {
