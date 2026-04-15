@@ -160,6 +160,21 @@
     /* ── Empty state ──────────────────────────── */
     .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.85rem; }
 
+    /* ── Fetch spinner ───────────────────────── */
+    .fetch-spinner {
+      display: none; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px; color: var(--text-dim); font-size: 0.75rem; font-weight: 600;
+    }
+    .fetch-spinner.show { display: flex; }
+    .spinner-ring {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* ── Scrollbar ────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -228,6 +243,19 @@
       </thead>
       <tbody id="stats-body"></tbody>
     </table>
+  </div>
+
+  <!-- Fetch button -->
+  <div style="margin-top: 20px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
+    <div class="section-label">Test</div>
+    <button id="fetch-btn" onclick="fetchLambda()" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--accent); color: #fff; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;">
+      📞 Fetch Data
+    </button>
+    <div class="fetch-spinner" id="fetch-spinner">
+      <div class="spinner-ring"></div>
+      <span>Fetching...</span>
+    </div>
+    <div id="fetch-output" style="margin-top:12px;padding:12px;background:var(--surface-2);border-radius:var(--radius-sm);border:1px solid var(--border);font-size:0.75rem;font-family:monospace;color:var(--text-dim);word-break:break-all;display:none;max-height:200px;overflow-y:auto;"></div>
   </div>
 
 </div>
@@ -350,6 +378,43 @@ function renderStats() {
 // ── Boot ───────────────────────────────────────────────────────────
 buildDateStrip();
 renderStats();
+
+// ── Fetch Lambda ───────────────────────────────────────────────────
+async function fetchLambda() {
+   const btn = document.getElementById('fetch-btn');
+   const output = document.getElementById('fetch-output');
+   const spinner = document.getElementById('fetch-spinner');
+
+   btn.disabled = true;
+   btn.style.opacity = '0.6';
+   output.style.display = 'none';
+   spinner.classList.add('show');
+
+   try {
+     const response = await fetch('https://tddzqx6dv5o5blwfbecjzdaene0avnjz.lambda-url.ap-south-1.on.aws/', {
+       method: 'POST',
+       body: JSON.stringify({ 'id': '1' })
+     });
+
+     const payload = await response.json();
+     const data = (payload && typeof payload.body === 'string')
+       ? JSON.parse(payload.body || '{}')
+       : payload;
+     output.textContent = JSON.stringify(data, null, 2);
+     output.style.color = 'var(--green)';
+     output.style.display = 'block';
+   } catch (error) {
+     output.textContent = `Error: ${error.message}`;
+     output.style.color = 'var(--red)';
+     output.style.display = 'block';
+     console.error('Fetch error:', error);
+   } finally {
+     spinner.classList.remove('show');
+     btn.disabled = false;
+     btn.style.opacity = '1';
+   }
+}
+
 </script>
 </body>
 </html>
