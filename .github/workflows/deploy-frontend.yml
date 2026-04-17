@@ -30,10 +30,10 @@ jobs:
         # with GitHub Actions Repository Variables (Settings > Variables > Actions)
         run: |
           sed \
-            -e "s|LAMBDA_GET_ATTENDANCE|${{ vars.LAMBDA_GET_ATTENDANCE }}|g" \
-            -e "s|LAMBDA_MARK_ATTENDANCE|${{ vars.LAMBDA_MARK_ATTENDANCE }}|g" \
-            -e "s|LAMBDA_LOGIN|${{ vars.LAMBDA_LOGIN }}|g" \
-            -e "s|LAMBDA_VERIFY|${{ vars.LAMBDA_VERIFY }}|g" \
+            -e "s|LAMBDA_GET_ATTENDANCE|${{ secrets.LAMBDA_GET_ATTENDANCE }}|g" \
+            -e "s|LAMBDA_MARK_ATTENDANCE|${{ secrets.LAMBDA_MARK_ATTENDANCE }}|g" \
+            -e "s|LAMBDA_LOGIN|${{ secrets.LAMBDA_LOGIN }}|g" \
+            -e "s|LAMBDA_VERIFY|${{ secrets.LAMBDA_VERIFY }}|g" \
             config.template.js > config.js
 
       - name: Setup Pages
