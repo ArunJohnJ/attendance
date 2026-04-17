@@ -35,7 +35,8 @@ jobs:
             -e "s|LAMBDA_LOGIN|${{ secrets.LAMBDA_LOGIN }}|g" \
             -e "s|LAMBDA_VERIFY|${{ secrets.LAMBDA_VERIFY }}|g" \
             config.template.js > config.js
-            echo "=== Generated config.js ===" && cat config.js
+            echo `pwd`
+            echo `ls`
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -43,7 +44,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: ${{ github.workspace }}
 
       - name: Deploy to GitHub Pages
         id: deployment
