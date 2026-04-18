@@ -26,16 +26,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate config.js from template
-        # Reads config.template.js and replaces __PLACEHOLDER__ values
+        # Reads config-template.js and replaces __PLACEHOLDER__ values
         # with GitHub Actions Repository Variables (Settings > Variables > Actions)
         run: |
           sed \
             -e "s|LAMBDA_GET_ATTENDANCE|${{ secrets.LAMBDA_GET_ATTENDANCE }}|g" \
             -e "s|LAMBDA_MARK_ATTENDANCE|${{ secrets.LAMBDA_MARK_ATTENDANCE }}|g" \
-            -e "s|LAMBDA_LOGIN|${{ secrets.LAMBDA_LOGIN }}|g" \
             -e "s|LAMBDA_VERIFY|${{ secrets.LAMBDA_VERIFY }}|g" \
-            -e "s|GOOGLE_CLIENT_ID|${{ secrets.GOOGLE_CLIENT_ID }}|g" \
-            config.template.js > config.js
+            -e "s|GOOGLE_CLIENT_NAME|${{ secrets.GOOGLE_CLIENT_ID }}|g" \
+            -e "s|LOGIN|${{ secrets.LAMBDA_LOGIN }}|g" \
+            config-template.js > config.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
