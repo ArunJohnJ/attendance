@@ -139,7 +139,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // Redirect if already logged in as teacher
+  // Redirect if already logged in as TEACHER
   if (getToken()) {
     location.replace('attendance.html');
   }
@@ -182,7 +182,7 @@
         })
         .then(data => {
           const role = data.role;
-          if (role === 'teacher') {
+          if (role === 'TEACHER') {
             saveSession(data.token);
             showToast('✅ Logged in! Redirecting…');
             setTimeout(() => location.href = 'attendance.html', 600);
