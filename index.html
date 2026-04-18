@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="config.js"></script>
+  <script src="theme.js"></script>
   <title>Attendance — VBS 2026</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -159,12 +160,7 @@
 </div>
 
 <script>
-function toggleTheme() {
-  const isLight = document.documentElement.classList.toggle('light');
-  document.getElementById('icon-moon').style.display = isLight ? 'none' : '';
-  document.getElementById('icon-sun').style.display  = isLight ? '' : 'none';
-  document.getElementById('theme-label').textContent = isLight ? 'Light' : 'Dark';
-}
+// Theme logic is in theme.js
 </script>
 </body>
 </html>

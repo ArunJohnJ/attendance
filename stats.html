@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="config.js"></script>
+  <script src="theme.js"></script>
+  <script src="utils.js"></script>
   <title>VBS 2026 — Attendance Count</title>
-  <link rel="stylesheet" href="https://oat.ink/components/oat.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -308,21 +309,10 @@ CLASSES.forEach(cls => {
 });
 
 // ── Helpers ────────────────────────────────────────────────────────
-const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+// DAY_LABELS, MONTH_ABBR, MONTH_FULL, dateKey() provided by utils.js
 
 // ── Theme ──────────────────────────────────────────────────────────
-function toggleTheme() {
-  const isLight = document.documentElement.classList.toggle('light');
-  document.getElementById('icon-moon').style.display = isLight ? 'none' : '';
-  document.getElementById('icon-sun').style.display  = isLight ? '' : 'none';
-  document.getElementById('theme-label').textContent = isLight ? 'Light' : 'Dark';
-}
+// toggleTheme() is provided by theme.js
 
 // ── Date strip ─────────────────────────────────────────────────────
 function buildDateStrip() {
