@@ -34,6 +34,7 @@ jobs:
             -e "s|LAMBDA_MARK_ATTENDANCE|${{ secrets.LAMBDA_MARK_ATTENDANCE }}|g" \
             -e "s|LAMBDA_LOGIN|${{ secrets.LAMBDA_LOGIN }}|g" \
             -e "s|LAMBDA_VERIFY|${{ secrets.LAMBDA_VERIFY }}|g" \
+            -e "s|GOOGLE_CLIENT_ID|${{ secrets.GOOGLE_CLIENT_ID }}|g" \
             config.template.js > config.js
 
       - name: Setup Pages
