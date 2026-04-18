@@ -1,1 +1,1 @@
-This project is used to manage students in VBS
+This project is used to manage students for VBS
