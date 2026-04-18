@@ -158,7 +158,7 @@
     setError('');
 
     const client = google.accounts.oauth2.initCodeClient({
-      client_id: APP_CONFIG.GOOGLE_CLIENT_ID,
+      client_id: APP_CONFIG.GOOGLE_CLIENT_NAME,
       scope: 'openid email',
       ux_mode: 'popup',
       callback: (response) => {
@@ -167,7 +167,7 @@
           resetBtn(); return;
         }
         showToast('🔄 Verifying with server…');
-        fetch(APP_CONFIG.LAMBDA_URLS.AUTH_GOOGLE, {
+        fetch(APP_CONFIG.LAMBDA_URLS.LOGIN, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: response.code })

@@ -3,6 +3,6 @@ const APP_CONFIG = {
   LAMBDA_URLS: {
     GET_ATTENDANCE: "LAMBDA_GET_ATTENDANCE",
     MARK_ATTENDANCE: "LAMBDA_MARK_ATTENDANCE",
-    AUTH_GOOGLE: "LAMBDA_AUTH_GOOGLE",
+    AUTH_GOOGLE: "https://lgcmvylgr6keesaazyb3yq6o6i0ayztl.lambda-url.ap-south-1.on.aws/",
   }
 };
