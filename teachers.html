@@ -166,7 +166,7 @@
           setError('Google sign-in was cancelled or failed.');
           resetBtn(); return;
         }
-        showToast('🔄 Verifying with server…');
+        showToast('🔄 Verifying…');
         fetch(APP_CONFIG.LAMBDA_URLS.LOGIN, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -179,7 +179,7 @@
           setError('Google sign-in was cancelled or failed.');
           resetBtn(); return;
         }
-        showToast('🔄 Verifying with server…');
+        showToast('🔄 Verifying…');
         fetch(APP_CONFIG.LAMBDA_URLS.LOGIN, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -195,7 +195,7 @@
         })
         .then(data => {
           const role = data.role;
-          if (role === 'ADMIN' || role === 'SUPER ADMIN') {
+          if (role === 'ADMIN' || role === 'SUPER-ADMIN') {
             saveSession(data.token);
             sessionStorage.setItem('adminAuthenticated', '1');
             sessionStorage.setItem('adminRole', role);

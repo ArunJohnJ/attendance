@@ -533,9 +533,9 @@
     <div class="modal-field">
       <label>Role</label>
       <select class="modal-input" id="edit-user-role">
-        <option value="teacher">Teacher</option>
-        <option value="admin">Admin</option>
-        <option value="superadmin">Super Admin</option>
+        <option value="TEACHER">TEACHER</option>
+        <option value="ADMIN">ADMIN</option>
+        <option value="SUPER-ADMIN">SUPER-ADMIN</option>
       </select>
     </div>
     <div class="modal-field" id="edit-class-field">
@@ -566,9 +566,9 @@
     <div class="modal-field">
       <label>Role</label>
       <select class="modal-input" id="add-user-role" onchange="onAddRoleChange()">
-        <option value="teacher">Teacher</option>
-        <option value="admin">Admin</option>
-        <option value="superadmin">Super Admin</option>
+        <option value="TEACHER">TEACHER</option>
+        <option value="ADMIN">ADMIN</option>
+        <option value="SUPER-ADMIN">SUPER-ADMIN</option>
       </select>
     </div>
     <div class="modal-field" id="add-class-field">
@@ -604,8 +604,8 @@ if (!sessionStorage.getItem('adminAuthenticated')) {
 
 // ── Role detection ────────────────────────────────
 const _adminEmail = sessionStorage.getItem('adminEmail') || 'ADMIN';
-const _adminRole  = sessionStorage.getItem('adminRole') || 'ADMIN'; // 'ADMIN' | 'SUPER ADMIN'
-const IS_SUPER_ADMIN = _adminRole === 'SUPER ADMIN';
+const _adminRole  = sessionStorage.getItem('adminRole') || 'ADMIN'; // 'ADMIN' | 'SUPER-ADMIN'
+const IS_SUPER_ADMIN = _adminRole === 'SUPER-ADMIN';
 
 document.getElementById('admin-email-sub').textContent = `Logged in as ${_adminEmail}`;
 
@@ -613,13 +613,13 @@ document.getElementById('admin-email-sub').textContent = `Logged in as ${_adminE
 const _pill = document.getElementById('role-pill');
 const _pillLabel = document.getElementById('role-pill-label');
 if (IS_SUPER_ADMIN) {
-  _pill.classList.add('SUPER ADMIN');
-  _pillLabel.textContent = 'Super Admin';
+  _pill.classList.add('SUPER-ADMIN');
+  _pillLabel.textContent = 'SUPER-ADMIN';
 } else {
   _pillLabel.textContent = 'ADMIN';
 }
 
-// Show Manage Access tab only for Super Admins
+// Show Manage Access tab only for Super-Admins
 if (IS_SUPER_ADMIN) {
   document.getElementById('tab-btn-manage').style.display = '';
 }
@@ -713,15 +713,17 @@ CLASS_MAPPINGS.forEach(cls => {
 
 // ── Logout ────────────────────────────────────────
 function adminLogout() {
+  clearSession();                                  // remove JWT from localStorage
   sessionStorage.removeItem('adminAuthenticated');
   sessionStorage.removeItem('adminEmail');
+  sessionStorage.removeItem('adminRole');
   location.href = 'admin.html';
 }
 
 // ── Tabs ──────────────────────────────────────────
 function switchTab(tab) {
   // Guard: only superadmin can access manage tab
-  if (tab === 'manage' && !IS_SUPER_ADMIN) { showToast('⛔ Super Admin access only'); return; }
+  if (tab === 'manage' && !IS_SUPER_ADMIN) { showToast('⛔ Super-Admin access only'); return; }
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (tab === 'attendance') document.querySelector('.tab-btn:first-child').classList.add('active');
@@ -1088,7 +1090,7 @@ function loadUsers() {
   }));
   // Add default admin and superadmin
   defaults.push({ id: 'admin_default', name: 'ADMIN', email: 'admin@vbs2026.com', role: 'ADMIN', classId: null });
-  defaults.push({ id: 'superadmin_default', name: 'Super Admin', email: 'superadmin@vbs2026.com', role: 'SUPER ADMIN', classId: null });
+  defaults.push({ id: 'superadmin_default', name: 'SUPER-ADMIN', email: 'superadmin@vbs2026.com', role: 'SUPER-ADMIN', classId: null });
   return defaults;
 }
 function saveUsers(users) {
@@ -1105,11 +1107,11 @@ function renderManageTable() {
 
   USERS.forEach((user, idx) => {
     const cls = user.classId ? CLASS_MAPPINGS.find(c => c.id === user.classId) : null;
-    const roleLabel = user.role === 'SUPER ADMIN'
-      ? `<span class="role-badge superadmin">👑 Super Admin</span>`
+    const roleLabel = user.role === 'SUPER-ADMIN'
+      ? `<span class="role-badge superadmin">👑 SUPER-ADMIN</span>`
       : user.role === 'ADMIN'
-        ? `<span class="role-badge admin">🛡️ Admin</span>`
-        : `<span class="role-badge teacher">📚 Teacher</span>`;
+        ? `<span class="role-badge admin">🛡️ ADMIN</span>`
+        : `<span class="role-badge teacher">📚 TEACHER</span>`;
     const classInfo = cls
       ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:3px">${cls.name}</div>`
       : '';
