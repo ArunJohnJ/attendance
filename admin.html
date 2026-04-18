@@ -150,6 +150,10 @@
 
 <script>
   if (getToken()) {
+    // Restore sessionStorage flags so the dashboard guard doesn't redirect back
+    if (!sessionStorage.getItem('adminAuthenticated')) {
+      sessionStorage.setItem('adminAuthenticated', '1');
+    }
     location.replace('admin-dashboard.html');
   }
 
@@ -164,6 +168,7 @@
     const btn = document.getElementById('google-btn');
     btn.disabled = true;
     btn.textContent = 'Signing in…';
+    setError('');
 
     const client = google.accounts.oauth2.initCodeClient({
       client_id: APP_CONFIG.GOOGLE_CLIENT_ID,
@@ -190,8 +195,11 @@
         })
         .then(data => {
           const role = data.role;
-          if (role === 'admin' || role === 'superadmin') {
+          if (role === 'ADMIN' || role === 'SUPER ADMIN') {
             saveSession(data.token);
+            sessionStorage.setItem('adminAuthenticated', '1');
+            sessionStorage.setItem('adminRole', role);
+            sessionStorage.setItem('adminEmail', data.email || '');
             showToast('✅ Logged in! Entering Dashboard…');
             setTimeout(() => location.href = 'admin-dashboard.html', 600);
           } else {

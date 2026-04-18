@@ -155,6 +155,7 @@
     const btn = document.getElementById('google-btn');
     btn.disabled = true;
     btn.textContent = 'Signing in…';
+    setError('');
 
     const client = google.accounts.oauth2.initCodeClient({
       client_id: APP_CONFIG.GOOGLE_CLIENT_ID,

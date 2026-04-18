@@ -603,9 +603,9 @@ if (!sessionStorage.getItem('adminAuthenticated')) {
 }
 
 // ── Role detection ────────────────────────────────
-const _adminEmail = sessionStorage.getItem('adminEmail') || 'admin';
-const _adminRole  = sessionStorage.getItem('adminRole') || 'admin'; // 'admin' | 'superadmin'
-const IS_SUPER_ADMIN = _adminRole === 'superadmin';
+const _adminEmail = sessionStorage.getItem('adminEmail') || 'ADMIN';
+const _adminRole  = sessionStorage.getItem('adminRole') || 'ADMIN'; // 'ADMIN' | 'SUPER ADMIN'
+const IS_SUPER_ADMIN = _adminRole === 'SUPER ADMIN';
 
 document.getElementById('admin-email-sub').textContent = `Logged in as ${_adminEmail}`;
 
@@ -613,10 +613,10 @@ document.getElementById('admin-email-sub').textContent = `Logged in as ${_adminE
 const _pill = document.getElementById('role-pill');
 const _pillLabel = document.getElementById('role-pill-label');
 if (IS_SUPER_ADMIN) {
-  _pill.classList.add('superadmin');
+  _pill.classList.add('SUPER ADMIN');
   _pillLabel.textContent = 'Super Admin';
 } else {
-  _pillLabel.textContent = 'Admin';
+  _pillLabel.textContent = 'ADMIN';
 }
 
 // Show Manage Access tab only for Super Admins
@@ -1072,7 +1072,7 @@ function exportAllPDF() {
 }
 
 // ── User registry ─────────────────────────────────
-// Each entry: { id, name, email, role: 'teacher'|'admin', classId: string|null }
+// Each entry: { id, name, email, role: 'teacher'|'ADMIN', classId: string|null }
 function loadUsers() {
   try {
     const raw = sessionStorage.getItem('userRegistry');
@@ -1087,8 +1087,8 @@ function loadUsers() {
     classId: cls.id
   }));
   // Add default admin and superadmin
-  defaults.push({ id: 'admin_default', name: 'Admin', email: 'admin@vbs2026.com', role: 'admin', classId: null });
-  defaults.push({ id: 'superadmin_default', name: 'Super Admin', email: 'superadmin@vbs2026.com', role: 'superadmin', classId: null });
+  defaults.push({ id: 'admin_default', name: 'ADMIN', email: 'admin@vbs2026.com', role: 'ADMIN', classId: null });
+  defaults.push({ id: 'superadmin_default', name: 'Super Admin', email: 'superadmin@vbs2026.com', role: 'SUPER ADMIN', classId: null });
   return defaults;
 }
 function saveUsers(users) {
@@ -1105,9 +1105,9 @@ function renderManageTable() {
 
   USERS.forEach((user, idx) => {
     const cls = user.classId ? CLASS_MAPPINGS.find(c => c.id === user.classId) : null;
-    const roleLabel = user.role === 'superadmin'
+    const roleLabel = user.role === 'SUPER ADMIN'
       ? `<span class="role-badge superadmin">👑 Super Admin</span>`
-      : user.role === 'admin'
+      : user.role === 'ADMIN'
         ? `<span class="role-badge admin">🛡️ Admin</span>`
         : `<span class="role-badge teacher">📚 Teacher</span>`;
     const classInfo = cls
