@@ -602,9 +602,9 @@ if (!sessionStorage.getItem('adminAuthenticated')) {
   location.replace('admin.html');
 }
 
-// ── Role detection ────────────────────────────────
-const _adminEmail = sessionStorage.getItem('adminEmail') || 'ADMIN';
-const _adminRole  = sessionStorage.getItem('adminRole') || 'ADMIN'; // 'ADMIN' | 'SUPER-ADMIN'
+// ── Role detection (from JWT — tamper-proof) ──────
+const _adminEmail = getEmailFromToken() || sessionStorage.getItem('adminEmail') || '';
+const _adminRole  = getRoleFromToken()  || 'ADMIN'; // 'ADMIN' | 'SUPER-ADMIN'
 const IS_SUPER_ADMIN = _adminRole === 'SUPER-ADMIN';
 
 document.getElementById('admin-email-sub').textContent = `Logged in as ${_adminEmail}`;
@@ -1331,13 +1331,4 @@ renderReport();
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 

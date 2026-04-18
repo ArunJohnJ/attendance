@@ -181,8 +181,6 @@
           return res.json();
         })
         .then(data => {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('role', data.role);
           const role = data.role;
           if (role === 'teacher') {
             saveSession(data.token);

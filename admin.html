@@ -150,9 +150,13 @@
 
 <script>
   if (getToken()) {
-    // Restore sessionStorage flags so the dashboard guard doesn't redirect back
+    // Restore sessionStorage from the JWT so the dashboard has role & email
     if (!sessionStorage.getItem('adminAuthenticated')) {
+      const _role  = getRoleFromToken()  || 'ADMIN';
+      const _email = getEmailFromToken() || '';
       sessionStorage.setItem('adminAuthenticated', '1');
+      sessionStorage.setItem('adminRole',  _role);
+      sessionStorage.setItem('adminEmail', _email);
     }
     location.replace('admin-dashboard.html');
   }
