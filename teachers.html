@@ -136,6 +136,9 @@
 <script>
   // Redirect if already logged in as TEACHER
   if (getToken()) {
+    if (!sessionStorage.getItem('authenticated')) {
+      sessionStorage.setItem('authenticated', '1');
+    }
     location.replace('attendance.html');
   }
 
@@ -179,6 +182,7 @@
           const role = data.role;
           if (role === 'TEACHER') {
             saveSession(data.token);
+            sessionStorage.setItem('authenticated', '1');
             showToast('✅ Logged in! Redirecting…');
             setTimeout(() => location.href = 'attendance.html', 600);
           } else {

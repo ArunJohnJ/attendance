@@ -566,9 +566,17 @@
 
 <script>
 // ── Auth guard ────────────────────────────────────
-if (!sessionStorage.getItem('authenticated')) {
-  location.replace('index.html');
-}
+(function() {
+  // Restore sessionStorage from JWT if navigated to directly (e.g. bookmark/refresh)
+  if (!sessionStorage.getItem('authenticated')) {
+    const role = getRoleFromToken();
+    if (role === 'TEACHER') {
+      sessionStorage.setItem('authenticated', '1');
+    } else {
+      location.replace('index.html');
+    }
+  }
+})();
 
 // ── Data ──────────────────────────────────────────
 const CLASS = {
@@ -601,7 +609,7 @@ let activeDay = TODAY_IDX;
 
 // ── Logout ────────────────────────────────────────
 function logout() {
-  sessionStorage.removeItem('authenticated');
+  clearSession();
   location.href = 'index.html';
 }
 
