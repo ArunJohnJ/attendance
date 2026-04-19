@@ -510,7 +510,8 @@
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Role / Class</th>
+            <th>Role</th>
+            <th>Class</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -961,11 +962,11 @@ function exportAllPDF() {
 let USERS = [];
 
 // ── GET_USERS ─────────────────────────────────────
-// Response: [{ id, name, email, role, classId }]
+// Response: [{ id, name, email, role, class }]
 async function loadUsers() {
   assertSuperAdmin();
   const tbody = document.getElementById('manage-tbody');
-  tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px">
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px">
     <span style="display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:0.82rem">
       <span style="display:inline-block;width:16px;height:16px;border-radius:50%;
         border:2.5px solid var(--border);border-top-color:var(--accent);
@@ -977,7 +978,7 @@ async function loadUsers() {
     USERS = Array.isArray(data) ? data : (data.response || data.users || []);
     renderManageTable();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--red)">❌ ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--red)">❌ ${err.message}</td></tr>`;
   }
 }
 
@@ -986,7 +987,7 @@ function renderManageTable() {
   const tbody = document.getElementById('manage-tbody');
   tbody.innerHTML = '';
   if (!USERS.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">No users found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No users found</td></tr>';
     return;
   }
   USERS.forEach((user, idx) => {
@@ -995,12 +996,13 @@ function renderManageTable() {
       : user.role === 'ADMIN'
         ? `<span class="role-badge admin">🛡️ ADMIN</span>`
         : `<span class="role-badge teacher">📚 TEACHER</span>`;
-    const classInfo = user.classId ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:3px">${user.classId}</div>` : '';
+    const classInfo = user.class ? `<span style="font-size:0.78rem;color:var(--muted)">${user.class}</span>` : `<span style="font-size:0.78rem;color:var(--muted)">—</span>`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><div class="teacher-name">${user.name}</div></td>
       <td><div class="teacher-email">${user.email}</div></td>
-      <td>${roleLabel}${classInfo}</td>
+      <td>${roleLabel}</td>
+      <td>${classInfo}</td>
       <td style="white-space:nowrap;display:flex;gap:6px;align-items:center;justify-content:flex-end">
         <button class="row-edit-btn" onclick="openMappingEdit(${idx})" title="Edit user">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -1055,7 +1057,7 @@ function openMappingEdit(idx) {
   document.getElementById('edit-user-role').value     = user.role;
   const isTeacher = user.role === 'TEACHER';
   document.getElementById('edit-class-field').style.display = isTeacher ? '' : 'none';
-  if (isTeacher) populateClassDropdown('edit-class-select', user.classId || '', false);
+  if (isTeacher) populateClassDropdown('edit-class-select', user.class || '', false);
   document.getElementById('edit-user-role').onchange = () => {
     const r = document.getElementById('edit-user-role').value;
     const show = r === 'TEACHER';
@@ -1082,7 +1084,7 @@ async function saveMappingEdit() {
     const updated = await apiCall(APP_CONFIG.LAMBDA_URLS.EDIT_USER, {
       body: { id: user.id, name: newName, role: newRole, classId: newClass }
     });
-    USERS[_editingUserIdx] = { ...user, ...updated, name: newName, role: newRole, classId: newClass };
+    USERS[_editingUserIdx] = { ...user, ...updated, name: newName, role: newRole, class: newClass };
     renderManageTable(); closeMappingModal(); showToast('✅ User updated');
   } catch (err) { showToast('❌ ' + err.message); }
   finally { stopSpin(); }
