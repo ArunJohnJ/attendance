@@ -6,6 +6,7 @@
   <script src="config.js"></script>
   <script src="theme.js"></script>
   <script src="auth.js"></script>
+  <script src="api.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <title>VBS 2026 — Admin Login</title>
   <style>
@@ -200,19 +201,7 @@
           resetBtn(); return;
         }
         showToast('🔄 Verifying…');
-        fetch(APP_CONFIG.LAMBDA_URLS.LOGIN, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: response.code })
-        })
-        .then(res => {
-          if (res.status === 401) {
-            clearSession();
-            return res.json().then(d => { throw new Error(d.message || 'Session expired. Please log in again.'); });
-          }
-          if (!res.ok) return res.json().then(d => { throw new Error(d.message || 'Login failed'); });
-          return res.json();
-        })
+        apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code: response.code }, auth: false })
         .then(data => {
           const role = data.role;
           if (role === 'ADMIN' || role === 'SUPER-ADMIN') {

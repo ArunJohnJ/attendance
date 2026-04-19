@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="config.js"></script>
   <script src="theme.js"></script>
+  <script src="auth.js"></script>
+  <script src="api.js"></script>
   <script src="utils.js"></script>
   <title>VBS 2026 — Attendance Count</title>
   <style>
@@ -247,81 +249,33 @@
     </table>
   </div>
 
-  <!-- Fetch button -->
-  <div style="margin-top: 20px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
-    <div class="section-label">Test</div>
-    <button id="fetch-btn" onclick="fetchLambda()" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--accent); color: #fff; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;">
-      📞 Fetch Data
-    </button>
-    <div class="fetch-spinner" id="fetch-spinner">
-      <div class="spinner-ring"></div>
-      <span>Fetching...</span>
-    </div>
-    <div id="fetch-output" style="margin-top:12px;padding:12px;background:var(--surface-2);border-radius:var(--radius-sm);border:1px solid var(--border);font-size:0.75rem;font-family:monospace;color:var(--text-dim);word-break:break-all;display:none;max-height:200px;overflow-y:auto;"></div>
-  </div>
-
 </div>
 
 <script>
-// ── Static class data (mirrors what attendance.html uses) ──────────
-// In a real app this would come from a shared API/DB.
-// Here we define sample classes with student counts.
-const CLASSES = [
-  { id: 'beginner_a', name: 'Beginner A',   teacher: 'Ms. Johnson',  students: ['Liam P','Emma R','Noah W','Olivia M','Aiden T','Sophia L','Lucas H','Ava C','Jackson B','Isabella F','Mia D','Ethan K','Charlotte G','Mason S','Amelia N','Logan Y','Harper X','Elijah Q','Evelyn Z','Benjamin V'] },
-  { id: 'beginner_b', name: 'Beginner B',   teacher: 'Mr. Carter',   students: ['James A','Luna E','Oliver I','Grace U','Henry O','Chloe P','Sebastian R','Penelope S','Jack T','Layla U','Daniel V','Riley W','Michael X','Zoey Y','Owen Z','Nora A','Samuel B','Lily C','William D','Eleanor E'] },
-  { id: 'primary_a',  name: 'Primary A',    teacher: 'Ms. Patel',    students: ['Alice Johnson','Bob Smith','Charlie Brown','Diana Prince','Ethan Hunt','Fiona Green','George Miller','Hannah White','Ivan Torres','Julia Roberts'] },
-  { id: 'primary_b',  name: 'Primary B',    teacher: 'Mr. Davis',    students: ['Victor Reyes','Wendy Chang','Xander Fox','Yara Ahmed','Zoe Clark','Aaron Bass','Bella Cruz','Carlos Ngan','Daisy Hill','Eddie Park','Frank Lane','Grace Kim'] },
-  { id: 'junior',     name: 'Junior',       teacher: 'Ms. Rivera',   students: ['Peter G','Quinn A','Rachel S','Sam L','Tina T','Uma P','Vera J','Walter N','Xena O','Yusuf M','Zara B','Andrew C','Brianna D','Cameron E','Destiny F'] },
-  { id: 'teen',       name: 'Teen',         teacher: 'Mr. Thompson', students: ['Alex R','Blake S','Casey T','Drew U','Ellis V','Finley W','Gray X','Harper Y','Indigo Z','Jordan A','Kai B','Lee C','Morgan D'] },
-];
+// ── Helpers: DAY_LABELS, MONTH_ABBR, MONTH_FULL, dateKey() from utils.js
+// ── toggleTheme() from theme.js
 
 // ── Date range: April 25 – May 3 2026 ─────────────────────────────
-const RANGE_START = new Date(2026, 3, 1);
-const RANGE_END   = new Date(2026, 3, 10);
+const RANGE_START = new Date(2026, 3, 25); // April 25
+const RANGE_END   = new Date(2026, 4,  3); // May 3
 const DAYS = [];
 for (let d = new Date(RANGE_START); d <= RANGE_END; d.setDate(d.getDate() + 1)) {
   DAYS.push(new Date(d));
 }
 
-// Default to today if within range, else April 25
-const now = new Date();
-const todayNorm = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-const inRange = todayNorm >= RANGE_START && todayNorm <= RANGE_END;
-const defaultIdx = inRange
-  ? DAYS.findIndex(d => d.getTime() === todayNorm.getTime())
-  : 0;
-const TODAY_RANGE_IDX = DAYS.findIndex(d => d.getTime() === todayNorm.getTime());
-
-let activeIdx = defaultIdx;
-
-// ── Simulated attendance ───────────────────────────────────────────
-// Pre-seed random data for demo purposes
-const simAttendance = {};
-CLASSES.forEach(cls => {
-  simAttendance[cls.id] = {};
-  DAYS.forEach(d => {
-    const key = dateKey(d);
-    simAttendance[cls.id][key] = {};
-    cls.students.forEach(s => {
-      simAttendance[cls.id][key][s] = Math.random() > 0.18;
-    });
-  });
-});
-
-// ── Helpers ────────────────────────────────────────────────────────
-// DAY_LABELS, MONTH_ABBR, MONTH_FULL, dateKey() provided by utils.js
-
-// ── Theme ──────────────────────────────────────────────────────────
-// toggleTheme() is provided by theme.js
+const now          = new Date();
+const todayNorm    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const TODAY_IDX    = DAYS.findIndex(d => d.getTime() === todayNorm.getTime());
+const defaultIdx   = TODAY_IDX !== -1 ? TODAY_IDX : 0;
+let activeIdx      = defaultIdx;
 
 // ── Date strip ─────────────────────────────────────────────────────
 function buildDateStrip() {
   const strip = document.getElementById('date-strip');
   strip.innerHTML = '';
   DAYS.forEach((d, idx) => {
-    const isToday = idx === TODAY_RANGE_IDX;
     const cell = document.createElement('div');
-    cell.className = 'date-cell' + (isToday ? ' today' : '') + (idx === activeIdx ? ' active' : '');
+    cell.className = 'date-cell' + (idx === TODAY_IDX ? ' today' : '') + (idx === activeIdx ? ' active' : '');
     cell.innerHTML = `<span class="day-label">${DAY_LABELS[d.getDay()]}</span><div class="day-num">${d.getDate()}</div>`;
     cell.addEventListener('click', () => selectDay(idx));
     strip.appendChild(cell);
@@ -331,81 +285,55 @@ function buildDateStrip() {
 function selectDay(idx) {
   activeIdx = idx;
   document.querySelectorAll('.date-cell').forEach((c, i) => c.classList.toggle('active', i === idx));
-  renderStats();
+  loadSummary();
 }
 
-// ── Render stats table ─────────────────────────────────────────────
-function renderStats() {
+// ── Load summary from API ──────────────────────────────────────────
+// Expected response: { date, grandTotal, classes: [{ classId, className, teacher, presentCount }] }
+async function loadSummary() {
   const d   = DAYS[activeIdx];
   const key = dateKey(d);
 
   document.getElementById('date-heading').textContent =
     `${MONTH_FULL[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
   document.getElementById('date-sub').textContent =
-    activeIdx === TODAY_RANGE_IDX ? '📅 Today\'s attendance count per class'
-                                  : 'Attendance count per class';
+    activeIdx === TODAY_IDX ? '📅 Today\'s attendance count per class' : 'Attendance count per class';
 
   const tbody = document.getElementById('stats-body');
-  tbody.innerHTML = '';
+  tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--muted)"><div class="fetch-spinner show" style="justify-content:center"><div class="spinner-ring"></div> Loading…</div></td></tr>';
+  document.getElementById('grand-total').textContent = '—';
 
-  let grandPresent = 0;
-  let grandTotal   = 0;
+  try {
+    const data = await apiCall(APP_CONFIG.LAMBDA_URLS.SUMMARY, { body: { date: key }, auth: false });
+    // data: { grandTotal: number, response: [{ classId, className, teacher, presentCount }] }
+    const classes     = data.classes || [];
+    const grandTotal  = data.grandTotal ?? classes.reduce((s, c) => s + (c.presentCount || 0), 0);
 
-  CLASSES.forEach(cls => {
-    const att      = (simAttendance[cls.id] || {})[key] || {};
-    const present  = cls.students.filter(s => !!att[s]).length;
-    grandPresent += present;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><div class="class-name">${cls.name}</div></td>
-      <td><span class="count-badge">${present}</span></td>`;
-    tbody.appendChild(tr);
-  });
-
-  document.getElementById('grand-total').textContent  = grandPresent;
+    tbody.innerHTML = '';
+    if (classes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" class="empty">No data for this date</td></tr>';
+    } else {
+      classes.forEach(cls => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div class="class-name">${cls.className || cls.classId}</div>
+            ${cls.teacher ? `<div class="class-teacher">👤 ${cls.teacher}</div>` : ''}
+          </td>
+          <td><span class="count-badge">${cls.presentCount ?? '—'}</span></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    document.getElementById('grand-total').textContent = grandTotal;
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--red)">${err.message}</td></tr>`;
+    showToast('❌ Failed to load summary');
+  }
 }
 
 // ── Boot ───────────────────────────────────────────────────────────
 buildDateStrip();
-renderStats();
-
-// ── Fetch Lambda ───────────────────────────────────────────────────
-async function fetchLambda() {
-   const btn = document.getElementById('fetch-btn');
-   const output = document.getElementById('fetch-output');
-   const spinner = document.getElementById('fetch-spinner');
-
-   btn.disabled = true;
-   btn.style.opacity = '0.6';
-   output.style.display = 'none';
-   spinner.classList.add('show');
-
-   try {
-     const response = await fetch(APP_CONFIG.LAMBDA_URLS.GET_ATTENDANCE, {
-       method: 'POST',
-       body: JSON.stringify({ 'id': '1' })
-     });
-
-     const payload = await response.json();
-     const data = (payload && typeof payload.body === 'string')
-       ? JSON.parse(payload.body || '{}')
-       : payload;
-     output.textContent = JSON.stringify(data, null, 2);
-     output.style.color = 'var(--green)';
-     output.style.display = 'block';
-   } catch (error) {
-     output.textContent = `Error: ${error.message}`;
-     output.style.color = 'var(--red)';
-     output.style.display = 'block';
-     console.error('Fetch error:', error);
-   } finally {
-     spinner.classList.remove('show');
-     btn.disabled = false;
-     btn.style.opacity = '1';
-   }
-}
-
+loadSummary();
 </script>
 </body>
 </html>

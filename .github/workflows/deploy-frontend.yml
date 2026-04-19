@@ -38,7 +38,7 @@ jobs:
             -e "s|LAMBDA_DISTINCT_CLASSES|${{ secrets.LAMBDA_DISTINCT_CLASSES }}|g" \
             -e "s|LAMBDA_VIEW_STUDENTS_SPECIFIC_DATE|${{ secrets.LAMBDA_VIEW_STUDENTS_SPECIFIC_DATE }}|g" \
             -e "s|LAMBDA_VIEW_STUDENTS_ALL_DATES|${{ secrets.LAMBDA_VIEW_STUDENTS_ALL_DATES }}|g" \
-            -e "s|LAMBDA_GET_USER|${{ secrets.LAMBDA_GET_USER }}|g" \
+            -e "s|LAMBDA_GET_USERS|${{ secrets.LAMBDA_GET_USERS }}|g" \
             -e "s|LAMBDA_DELETE_USER|${{ secrets.LAMBDA_DELETE_USER }}|g" \
             -e "s|LAMBDA_EDIT_USER|${{ secrets.LAMBDA_EDIT_USER }}|g" \
             -e "s|LAMBDA_ADD_USER|${{ secrets.LAMBDA_ADD_USER }}|g" \

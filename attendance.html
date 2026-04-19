@@ -6,6 +6,7 @@
   <script src="config.js"></script>
   <script src="theme.js"></script>
   <script src="auth.js"></script>
+  <script src="api.js"></script>
   <script src="utils.js"></script>
   <title>Attendance Tracker</title>
   <style>
@@ -566,76 +567,74 @@
 
 <script>
 // ── Auth guard — TEACHER only ─────────────────────
-// requireRole() is in auth.js — checks JWT role, expiry, and redirects if wrong
 requireRole(['TEACHER'], 'index.html');
 
-// ── Data ──────────────────────────────────────────
-const CLASS = {
-  name: "Grade 5 — Ms. Smith",
-  students: [
-    "Alice Johnson","Bob Smith","Charlie Brown","Diana Prince",
-    "Ethan Hunt","Fiona Green","George Miller","Hannah White",
-    "Ivan Torres","Julia Roberts"
-  ]
-};
-const activeClass = 'grade5';
+// ── State ─────────────────────────────────────────
+// CLASS is populated from GET_ATTENDANCE response.
+// Expected shape: { classId, className, teacher, students: [{ name, present }] }
+let CLASS      = { id: '', name: '', students: [] };
+let activeClass = '';
+const attendance = {}; // { classId: { 'YYYY-MM-DD': { studentName: bool } } }
 
-const TODAY_START = new Date(2026, 3, 25);
-const RANGE_END   = new Date(2026, 4, 3);
+// ── Date range ────────────────────────────────────
+const RANGE_START = new Date(2026, 3, 25); // April 25
+const RANGE_END   = new Date(2026, 4,  3); // May 3
 const DAYS = [];
-for (let d = new Date(TODAY_START); d <= RANGE_END; d.setDate(d.getDate() + 1)) {
+for (let d = new Date(RANGE_START); d <= RANGE_END; d.setDate(d.getDate() + 1)) {
   DAYS.push(new Date(d));
 }
-
-// Find today in range; fallback to last day if today is outside range
 const _todayNorm = new Date(); _todayNorm.setHours(0,0,0,0);
 const _todayIdx  = DAYS.findIndex(d => d.getTime() === _todayNorm.getTime());
 const TODAY_IDX  = _todayIdx !== -1 ? _todayIdx : DAYS.length - 1;
 
-const attendance = {};
 let activeDay = TODAY_IDX;
 
-// ── Theme ─────────────────────────────────────────
-// toggleTheme() is provided by theme.js
-
 // ── Logout ────────────────────────────────────────
-function logout() {
-  clearSession();
-  location.href = 'index.html';
-}
+function logout() { clearSession(); location.href = 'index.html'; }
 
 // ── Drawer ────────────────────────────────────────
-function openDrawer() {
-  document.getElementById('reports-drawer').classList.add('open');
-  document.getElementById('drawer-overlay').classList.add('open');
-}
-function closeDrawer() {
-  document.getElementById('reports-drawer').classList.remove('open');
-  document.getElementById('drawer-overlay').classList.remove('open');
+function openDrawer()  { document.getElementById('reports-drawer').classList.add('open');    document.getElementById('drawer-overlay').classList.add('open'); }
+function closeDrawer() { document.getElementById('reports-drawer').classList.remove('open'); document.getElementById('drawer-overlay').classList.remove('open'); }
+
+// ── Load attendance from API ───────────────────────
+// GET_ATTENDANCE response: { classId, className, teacher, students: [{ name, present }] }
+async function loadAttendance() {
+  const key  = dateKey(DAYS[activeDay]);
+  const list = document.getElementById('student-list');
+  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">⏳ Loading…</div>';
+
+  try {
+    const data = await apiCall(APP_CONFIG.LAMBDA_URLS.GET_ATTENDANCE, {
+      queryParams: { date: key }
+    });
+
+    CLASS.id   = data.classId  || '';
+    CLASS.name = data.className || (data.teacher ? `Class — ${data.teacher}` : 'My Class');
+    activeClass = CLASS.id;
+
+    // Rebuild student list from this date's response
+    CLASS.students = (data.students || []).map(s => s.name);
+
+    if (!attendance[activeClass]) attendance[activeClass] = {};
+    attendance[activeClass][key] = {};
+    (data.students || []).forEach(s => {
+      attendance[activeClass][key][s.name] = !!s.present;
+    });
+
+    document.querySelector('.class-title').textContent = `📚 ${CLASS.name}`;
+    updateStudentCount();
+    renderStudentList();
+  } catch (err) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red)">❌ ${err.message}</div>`;
+    showToast('❌ Failed to load attendance');
+  }
 }
 
 // ── Init ──────────────────────────────────────────
 function init() {
   buildDateStrip();
-  seedHistoricData();
-  renderStudentList();
   updateDateLabel();
-  updateStudentCount();
-}
-
-function seedHistoricData() {
-  if (!attendance[activeClass]) {
-    attendance[activeClass] = {};
-    DAYS.forEach((d, idx) => {
-      if (idx < TODAY_IDX) {
-        const key = dateKey(d);
-        attendance[activeClass][key] = {};
-        CLASS.students.forEach(s => {
-          attendance[activeClass][key][s] = Math.random() > 0.15;
-        });
-      }
-    });
-  }
+  loadAttendance();
 }
 
 function updateStudentCount() {
@@ -644,8 +643,6 @@ function updateStudentCount() {
 }
 
 // ── Date Strip ────────────────────────────────────
-// DAY_LABELS, MONTH_ABBR, dateKey() provided by utils.js
-
 function buildDateStrip() {
   const strip = document.getElementById('date-strip');
   strip.innerHTML = '';
@@ -662,7 +659,7 @@ function selectDay(idx) {
   activeDay = idx;
   document.querySelectorAll('.date-cell').forEach((c, i) => c.classList.toggle('active', i === idx));
   updateDateLabel();
-  renderStudentList();
+  loadAttendance(); // re-fetch for the selected date
 }
 
 function updateDateLabel() {
@@ -670,8 +667,6 @@ function updateDateLabel() {
   document.getElementById('current-date-label').textContent = `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
   document.getElementById('students-label').textContent = `Students — ${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
 }
-
-// dateKey() provided by utils.js
 
 // ── Student List ──────────────────────────────────
 function renderStudentList() {
@@ -688,8 +683,8 @@ function renderStudentList() {
     row.id = 'row-' + sanitize(name);
 
     const dots = DAYS.map((d, idx) => {
-      const att = (attendance[activeClass] || {})[dateKey(d)] || {};
-      const filled = idx < TODAY_IDX ? !!att[name] : (idx === activeDay ? !!dayAtt[name] : false);
+      const att    = (attendance[activeClass] || {})[dateKey(d)] || {};
+      const filled = !!att[name];
       return `<div class="habit-dot ${filled ? 'filled' : ''} ${idx === activeDay ? 'today-dot' : ''}"
                    title="${DAY_LABELS[d.getDay()]} ${d.getDate()}"
                    onclick="toggleDot('${escHtml(name)}', ${idx})"></div>`;
@@ -725,8 +720,8 @@ function toggleStudent(name) {
   const cur = !!attendance[activeClass][key][name];
   attendance[activeClass][key][name] = !cur;
 
-  const row = document.getElementById('row-' + sanitize(name));
-  const toggle = document.getElementById('toggle-' + sanitize(name));
+  const row      = document.getElementById('row-' + sanitize(name));
+  const toggle   = document.getElementById('toggle-' + sanitize(name));
   const statusTxt = row.querySelector('.student-status-text');
   if (!cur) {
     row.classList.add('is-present'); toggle.classList.add('checked');
@@ -740,7 +735,7 @@ function toggleStudent(name) {
 }
 
 function toggleDot(name, dayIdx) {
-  if (dayIdx !== TODAY_IDX) { showToast('Past records are read-only'); return; }
+  if (dayIdx !== activeDay) { showToast('Switch to that date to edit'); return; }
   toggleStudent(name);
 }
 
@@ -753,27 +748,40 @@ function markAll(present) {
 }
 
 function updateSummary() {
-  const key    = dateKey(DAYS[activeDay]);
-  const dayAtt = (attendance[activeClass] || {})[key] || {};
+  const key     = dateKey(DAYS[activeDay]);
+  const dayAtt  = (attendance[activeClass] || {})[key] || {};
   const total   = CLASS.students.length;
   const present = CLASS.students.filter(s => !!dayAtt[s]).length;
   document.getElementById('present-count').textContent = present;
   document.getElementById('absent-count').textContent  = total - present;
   document.getElementById('total-count').textContent   = total;
-  document.getElementById('progress-fill').style.width = `${Math.round((present / total) * 100)}%`;
+  document.getElementById('progress-fill').style.width = total > 0 ? `${Math.round((present / total) * 100)}%` : '0%';
 }
 
-function submitAttendance() {
+// ── Submit Attendance ─────────────────────────────
+// MARK_ATTENDANCE payload: { classId, date, records: { studentName: bool } }
+async function submitAttendance() {
   const key    = dateKey(DAYS[activeDay]);
   const dayAtt = (attendance[activeClass] || {})[key] || {};
-  const total   = CLASS.students.length;
+  const total  = CLASS.students.length;
   const present = CLASS.students.filter(s => !!dayAtt[s]).length;
-  const payload = { classId: activeClass, date: key, records: dayAtt, submittedAt: new Date().toISOString() };
-  console.log('Payload:', JSON.stringify(payload, null, 2));
-  showToast(`✅ Submitted! ${present}/${total} present`);
+
+  const btn = document.querySelector('.submit-btn');
+  const stopSpin = btnSpinner(btn);
+  try {
+    await apiCall(APP_CONFIG.LAMBDA_URLS.MARK_ATTENDANCE, {
+      body: { classId: activeClass, date: key, records: dayAtt }
+    });
+    showToast(`✅ Submitted! ${present}/${total} present`);
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    stopSpin();
+  }
 }
 
 // ── Add Student ───────────────────────────────────
+// ADD_STUDENT payload: { classId, name }
 function openAddStudent() {
   document.getElementById('new-student-name').value = '';
   document.getElementById('add-student-modal').classList.add('open');
@@ -781,32 +789,33 @@ function openAddStudent() {
 }
 function closeAddStudent() { document.getElementById('add-student-modal').classList.remove('open'); }
 function handleModalOverlayClick(e) { if (e.target.id === 'add-student-modal') closeAddStudent(); }
-function confirmAddStudent() {
+
+async function confirmAddStudent() {
   const input = document.getElementById('new-student-name');
   const name  = input.value.trim();
   if (!name) { showToast('⚠️ Please enter a name'); return; }
   if (CLASS.students.includes(name)) { showToast('⚠️ Student already exists'); return; }
-  CLASS.students.push(name);
-  updateStudentCount();
-  renderStudentList();
-  closeAddStudent();
-  showToast(`✅ Added ${name}`);
-}
 
-// ── Delete Student ────────────────────────────────
-function deleteStudent(name) {
-  if (!confirm(`Remove "${name}" from the class? This cannot be undone.`)) return;
-  const idx = CLASS.students.indexOf(name);
-  if (idx === -1) return;
-  CLASS.students.splice(idx, 1);
-  // Remove from all attendance records
-  Object.values(attendance[activeClass] || {}).forEach(dayRec => { delete dayRec[name]; });
-  updateStudentCount();
-  renderStudentList();
-  showToast(`🗑️ Removed ${name}`);
+  const btn = document.querySelector('#add-student-modal .btn-primary');
+  const stopSpin = btnSpinner(btn);
+  try {
+    await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_STUDENT, {
+      body: { classId: activeClass, name }
+    });
+    CLASS.students.push(name);
+    updateStudentCount();
+    renderStudentList();
+    closeAddStudent();
+    showToast(`✅ Added ${name}`);
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    stopSpin();
+  }
 }
 
 // ── Edit Student ──────────────────────────────────
+// EDIT_STUDENT payload: { classId, oldName, newName }
 let _editingName = '';
 function openEditStudent(name) {
   _editingName = name;
@@ -816,167 +825,97 @@ function openEditStudent(name) {
 }
 function closeEditStudent() { document.getElementById('edit-student-modal').classList.remove('open'); }
 function handleEditModalOverlayClick(e) { if (e.target.id === 'edit-student-modal') closeEditStudent(); }
-function confirmEditStudent() {
+
+async function confirmEditStudent() {
   const input   = document.getElementById('edit-student-name');
   const newName = input.value.trim();
   if (!newName) { showToast('⚠️ Please enter a name'); return; }
   if (newName === _editingName) { closeEditStudent(); return; }
   if (CLASS.students.includes(newName)) { showToast('⚠️ Student already exists'); return; }
-  const idx = CLASS.students.indexOf(_editingName);
-  if (idx === -1) return;
-  CLASS.students[idx] = newName;
-  // Rename in all attendance records
-  Object.values(attendance[activeClass] || {}).forEach(dayRec => {
-    if (_editingName in dayRec) {
-      dayRec[newName] = dayRec[_editingName];
-      delete dayRec[_editingName];
-    }
-  });
-  updateStudentCount();
-  renderStudentList();
-  closeEditStudent();
-  showToast(`✏️ Renamed to ${newName}`);
+
+  const btn = document.querySelector('#edit-student-modal .btn-primary');
+  const stopSpin = btnSpinner(btn);
+  try {
+    await apiCall(APP_CONFIG.LAMBDA_URLS.EDIT_STUDENT, {
+      body: { classId: activeClass, oldName: _editingName, newName }
+    });
+    const idx = CLASS.students.indexOf(_editingName);
+    if (idx !== -1) CLASS.students[idx] = newName;
+    Object.values(attendance[activeClass] || {}).forEach(dayRec => {
+      if (_editingName in dayRec) { dayRec[newName] = dayRec[_editingName]; delete dayRec[_editingName]; }
+    });
+    updateStudentCount();
+    renderStudentList();
+    closeEditStudent();
+    showToast(`✏️ Renamed to ${newName}`);
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    stopSpin();
+  }
 }
 
-// ── Build export data ─────────────────────────────
+// ── Export helpers ────────────────────────────────
 function buildExportRows() {
-  // Excel version — uses emoji (renders fine in xlsx)
   const headers = ['#', 'Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total Days Present', ''];
   const rows = CLASS.students.map((name, rowIdx) => {
     const dayValues = DAYS.map(d => {
       const att = (attendance[activeClass] || {})[dateKey(d)] || {};
       return att[name] === true ? '✅' : att[name] === false ? '❌' : '';
     });
-    const total = dayValues.filter(v => v === '✅').length;
-    return [rowIdx + 1, name, ...dayValues, total, ''];
+    return [rowIdx + 1, name, ...dayValues, dayValues.filter(v => v === '✅').length, ''];
   });
   return { headers, rows };
 }
 
 function buildPdfRows() {
-  // PDF version — uses ASCII-safe symbols that jsPDF renders correctly
-  // P = present, A = absent
   const headers = ['#', 'Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total'];
   const rows = CLASS.students.map((name, rowIdx) => {
     const dayValues = DAYS.map(d => {
       const att = (attendance[activeClass] || {})[dateKey(d)] || {};
       return att[name] === true ? 'P' : att[name] === false ? 'A' : '-';
     });
-    const total = dayValues.filter(v => v === 'P').length;
-    return [rowIdx + 1, name, ...dayValues, total];
+    return [rowIdx + 1, name, ...dayValues, dayValues.filter(v => v === 'P').length];
   });
   return { headers, rows };
 }
 
-// ── Export Excel ──────────────────────────────────
 function exportExcel() {
   try {
     const { headers, rows } = buildExportRows();
-    const wsData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [{ wch:5 },{ wch:22 },...DAYS.map(()=>({ wch:7 })),{ wch:18 },{ wch:6 }];
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    const totalColIdx = headers.length - 2; // "Total Days Present"; last col is empty padding
-
-    // Column widths
-    ws['!cols'] = [
-      { wch: 5 },  // #
-      { wch: 22 }, // Student
-      ...DAYS.map(() => ({ wch: 7 })),
-      { wch: 18 },
-      { wch: 6 }
-    ];
-
-    // Style header row (skip last empty padding column)
-    headers.forEach((_, ci) => {
-      if (ci === headers.length - 1) return; // skip empty padding col
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
-      if (!ws[cellRef]) return;
-      ws[cellRef].s = {
-        font: { bold: true, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '6C63FF' } },
-        alignment: { horizontal: ci === 1 ? 'left' : 'center' }
-      };
-    });
-
-    // Style data rows
-    rows.forEach((row, ri) => {
-      row.forEach((val, ci) => {
-        const cellRef = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
-        if (!ws[cellRef]) return;
-        if (val === '✅') {
-          ws[cellRef].s = { alignment: { horizontal: 'center' } };
-        } else if (val === '❌') {
-          ws[cellRef].s = { alignment: { horizontal: 'center' } };
-        } else if (ci === totalColIdx) {
-          ws[cellRef].s = {
-            font: { bold: true },
-            fill: { fgColor: { rgb: 'DCFCE7' } },
-            alignment: { horizontal: 'center' }
-          };
-        }
-      });
-    });
-
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-    XLSX.writeFile(wb, 'attendance_grade5.xlsx');
-    closeDrawer();
-    showToast('✅ Excel file downloaded');
-  } catch (e) {
-    showToast('❌ Export failed — check console');
-    console.error(e);
-  }
+    XLSX.writeFile(wb, `attendance_${activeClass || 'class'}.xlsx`);
+    closeDrawer(); showToast('✅ Excel file downloaded');
+  } catch (e) { showToast('❌ Export failed'); console.error(e); }
 }
 
-// ── Export PDF ────────────────────────────────────
 function exportPDF() {
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const { headers, rows } = buildPdfRows();
-    const totalColIdx = headers.length - 1;
-
-    doc.setFontSize(14);
-    doc.text('Attendance Report — Grade 5 / Ms. Smith', 14, 15);
-    doc.setFontSize(9);
-    doc.setTextColor(120);
+    doc.setFontSize(14); doc.text(`Attendance Report — ${CLASS.name}`, 14, 15);
+    doc.setFontSize(9); doc.setTextColor(120);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
-
     doc.autoTable({
-      head: [headers],
-      body: rows,
-      startY: 26,
+      head: [headers], body: rows, startY: 26,
       styles: { fontSize: 8, cellPadding: 2, halign: 'center' },
-      headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold', halign: 'center' },
-      columnStyles: {
-        0: { cellWidth: 8,  halign: 'center', textColor: [150, 150, 150] },
-        1: { cellWidth: 36, halign: 'left' },
-        [totalColIdx]: { cellWidth: 14, fontStyle: 'bold', fillColor: [238, 240, 245] }
-      },
+      headStyles: { fillColor: [108,99,255], textColor: 255, fontStyle: 'bold' },
+      columnStyles: { 0:{ cellWidth:8, textColor:[150,150,150] }, 1:{ cellWidth:36, halign:'left' }, [headers.length-1]:{ cellWidth:14, fontStyle:'bold', fillColor:[238,240,245] } },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index > 1 && data.column.index < totalColIdx) {
-          if (data.cell.raw === 'P') {
-            data.cell.styles.fillColor  = [220, 252, 231]; // light green bg
-            data.cell.styles.textColor  = [21, 128, 61];   // dark green text
-            data.cell.styles.fontStyle  = 'bold';
-          } else if (data.cell.raw === 'A') {
-            data.cell.styles.fillColor  = [254, 226, 226]; // light red bg
-            data.cell.styles.textColor  = [185, 28, 28];   // dark red text
-            data.cell.styles.fontStyle  = 'bold';
-          } else if (data.cell.raw === '-') {
-            data.cell.styles.textColor  = [180, 180, 180];
-          }
+        if (data.section==='body' && data.column.index>1 && data.column.index<headers.length-1) {
+          if (data.cell.raw==='P') { data.cell.styles.fillColor=[220,252,231]; data.cell.styles.textColor=[21,128,61]; data.cell.styles.fontStyle='bold'; }
+          else if (data.cell.raw==='A') { data.cell.styles.fillColor=[254,226,226]; data.cell.styles.textColor=[185,28,28]; data.cell.styles.fontStyle='bold'; }
+          else if (data.cell.raw==='-') { data.cell.styles.textColor=[180,180,180]; }
         }
       }
     });
-
-    doc.save('attendance_grade5.pdf');
-    closeDrawer();
-    showToast('✅ PDF file downloaded');
-  } catch (e) {
-    showToast('❌ Export failed — check console');
-    console.error(e);
-  }
+    doc.save(`attendance_${activeClass || 'class'}.pdf`);
+    closeDrawer(); showToast('✅ PDF file downloaded');
+  } catch (e) { showToast('❌ Export failed'); console.error(e); }
 }
 
 
