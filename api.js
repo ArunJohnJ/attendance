@@ -50,8 +50,8 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
   if (response.status === 401) {
     clearSession(); // from auth.js
     sessionStorage.setItem('authError', 'tokenExpired');
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.message || 'Session expired. Please log in again.');
+    location.href = 'index.html';
+    throw new Error('Session expired. Please log in again.');
   }
 
   // Other non-2xx
