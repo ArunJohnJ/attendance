@@ -9,6 +9,11 @@ function clearSession() {
   // Remove legacy keys if present
   localStorage.removeItem('role');
   localStorage.removeItem('email');
+  // Clear session flags
+  sessionStorage.removeItem('authenticated');
+  sessionStorage.removeItem('adminAuthenticated');
+  sessionStorage.removeItem('adminEmail');
+  sessionStorage.removeItem('adminRole');
 }
 
 function getToken() {
@@ -31,7 +36,19 @@ function decodeToken(token) {
 }
 
 /**
- * Returns the role embedded in the JWT ('ADMIN', 'SUPER-ADMIN', 'teacher', …)
+ * Returns true if the JWT token is expired or invalid.
+ */
+function isTokenExpired() {
+  const token = getToken();
+  if (!token) return true;
+  const payload = decodeToken(token);
+  if (!payload || !payload.exp) return true;
+  // exp is in seconds; Date.now() is in milliseconds
+  return Date.now() >= payload.exp * 1000;
+}
+
+/**
+ * Returns the role embedded in the JWT ('ADMIN', 'SUPER-ADMIN', 'TEACHER', …)
  * or null if no valid token exists.
  * Because the JWT is server-signed, the client cannot change this value
  * without the server rejecting all subsequent API calls.
@@ -51,6 +68,41 @@ function getEmailFromToken() {
   if (!token) return null;
   const payload = decodeToken(token);
   return (payload && payload.email) ? payload.email : null;
+}
+
+/**
+ * Role-based page guard.
+ * Call once at the top of each protected page (before any rendering).
+ *
+ * @param {string[]} allowedRoles  - Roles permitted on this page, e.g. ['ADMIN','SUPER-ADMIN']
+ * @param {string}   loginPage     - Page to redirect to on failure, e.g. 'admin.html'
+ *
+ * If the token is missing, expired, or carries the wrong role:
+ *   1. Clears all session data
+ *   2. Redirects to loginPage immediately
+ *
+ * Otherwise sets the appropriate sessionStorage flag and returns normally.
+ */
+function requireRole(allowedRoles, loginPage) {
+  const token = getToken();
+  const role  = token ? getRoleFromToken() : null;
+
+  if (!token || isTokenExpired() || !role || !allowedRoles.includes(role)) {
+    clearSession();
+    // Preserve a redirect reason so the login page can show a message
+    sessionStorage.setItem('authError',
+      !token || !role ? 'notLoggedIn' : isTokenExpired() ? 'tokenExpired' : 'wrongRole');
+    location.replace(loginPage);
+    // Stop further script execution on this page
+    throw new Error('Auth redirect');
+  }
+
+  // Stamp the appropriate sessionStorage flag
+  if (allowedRoles.some(r => r === 'ADMIN' || r === 'SUPER-ADMIN')) {
+    sessionStorage.setItem('adminAuthenticated', '1');
+  } else {
+    sessionStorage.setItem('authenticated', '1');
+  }
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────

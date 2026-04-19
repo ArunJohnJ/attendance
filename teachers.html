@@ -134,8 +134,23 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // ── Show message if redirected here due to wrong role / expired token ─────
+  (function() {
+    const err = sessionStorage.getItem('authError');
+    if (err) {
+      sessionStorage.removeItem('authError');
+      const msgs = {
+        wrongRole:    '⛔ Access denied — Teacher login required',
+        tokenExpired: '⏱️ Session expired — please log in again',
+        notLoggedIn:  '🔒 Please log in to continue',
+      };
+      window.addEventListener('DOMContentLoaded', () =>
+        showToast(msgs[err] || '🔒 Please log in to continue', 4000));
+    }
+  })();
+
   // Redirect if already logged in as TEACHER
-  if (getToken()) {
+  if (getToken() && getRoleFromToken() === 'TEACHER') {
     if (!sessionStorage.getItem('authenticated')) {
       sessionStorage.setItem('authenticated', '1');
     }

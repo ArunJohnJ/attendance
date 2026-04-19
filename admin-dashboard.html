@@ -215,7 +215,10 @@
       text-transform: uppercase; letter-spacing: 0.05em; color: #fff;
       text-align: center; white-space: nowrap;
     }
-    .att-table thead th:first-child { text-align: left; min-width: 130px; }
+    .att-table thead th:first-child { text-align: center; min-width: 32px; width: 32px; }
+  .att-table thead th:nth-child(2) { text-align: left; min-width: 130px; }
+  .att-table tbody td:first-child { text-align: center; font-weight: 400; color: var(--muted); }
+  .att-table tbody td:nth-child(2) { text-align: left; font-weight: 600; }
     .att-table thead th:last-child { background: rgba(0,0,0,0.2); }
     .att-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
     .att-table tbody tr:last-child { border-bottom: none; }
@@ -527,8 +530,9 @@
       <input class="modal-input" id="edit-teacher-name" type="text" placeholder="e.g. Ms. Smith" maxlength="60" />
     </div>
     <div class="modal-field">
-      <label>Email</label>
-      <input class="modal-input" id="edit-teacher-email" type="email" placeholder="teacher@school.edu" maxlength="80" />
+      <label>Email <span style="font-size:0.65rem;color:var(--muted);font-weight:400">(cannot be changed)</span></label>
+      <input class="modal-input" id="edit-teacher-email" type="email" readonly
+             style="opacity:0.5;cursor:not-allowed;background:var(--surface)" />
     </div>
     <div class="modal-field">
       <label>Role</label>
@@ -597,10 +601,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <script>
-// ── Auth guard ────────────────────────────────────
-if (!sessionStorage.getItem('adminAuthenticated')) {
-  location.replace('admin.html');
-}
+// ── Auth guard — ADMIN / SUPER-ADMIN only ────────
+// requireRole() is in auth.js — checks JWT role, expiry, and redirects if wrong
+requireRole(['ADMIN', 'SUPER-ADMIN'], 'admin.html');
 
 // ── Role detection (from JWT — tamper-proof) ──────
 const _adminEmail = getEmailFromToken() || sessionStorage.getItem('adminEmail') || '';
@@ -835,6 +838,9 @@ function buildClassSection(cls, key) {
   // Build header
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
+  const thNum = document.createElement('th');
+  thNum.textContent = '#';
+  headerRow.appendChild(thNum);
   const th0 = document.createElement('th');
   th0.textContent = 'Student'; th0.style.textAlign = 'left';
   headerRow.appendChild(th0);
@@ -858,8 +864,11 @@ function buildClassSection(cls, key) {
 
   // Build body
   const tbody = document.createElement('tbody');
-  cls.students.forEach(name => {
+  cls.students.forEach((name, rowIdx) => {
     const tr = document.createElement('tr');
+    const tdNum = document.createElement('td');
+    tdNum.textContent = rowIdx + 1;
+    tr.appendChild(tdNum);
     const tdName = document.createElement('td');
     tdName.textContent = name; tr.appendChild(tdName);
     let studentPresent = 0;
@@ -997,25 +1006,25 @@ function exportAllPDF() {
 
       const dateCols = daysToExport.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`);
       const headers = viewMode === 'all'
-        ? ['Student', ...dateCols, 'Total']
-        : ['Student', ...dateCols];
+        ? ['#', 'Student', ...dateCols, 'Total']
+        : ['#', 'Student', ...dateCols];
 
-      const rows = cls.students.map(name => {
+      const rows = cls.students.map((name, rowIdx) => {
         const dayValues = daysToExport.map(d => {
           const att = (simAtt[cls.id] || {})[dateKey(d)] || {};
           return att[name] === true ? 'P' : att[name] === false ? 'A' : '-';
         });
         if (viewMode === 'all') {
           const total = dayValues.filter(v => v === 'P').length;
-          return [name, ...dayValues, total];
+          return [rowIdx + 1, name, ...dayValues, total];
         }
-        return [name, ...dayValues];
+        return [rowIdx + 1, name, ...dayValues];
       });
 
       const totalColIdx = viewMode === 'all' ? headers.length - 1 : -1;
 
-      // In 'all' mode, which column index is the active day? (offset +1 for Student column)
-      const activeDayColPdfIdx = viewMode === 'all' ? activeDay + 1 : 1; // in single mode the 1 column is active
+      // In 'all' mode, which column index is the active day? (offset +2 for # and Student columns)
+      const activeDayColPdfIdx = viewMode === 'all' ? activeDay + 2 : 2; // in single mode the 1 date column is at index 2
 
       doc.autoTable({
         head: [headers],
@@ -1024,7 +1033,8 @@ function exportAllPDF() {
         styles: { fontSize: 7, cellPadding: 1.8, halign: 'center' },
         headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold', halign: 'center' },
         columnStyles: {
-          0: { cellWidth: 34, halign: 'left' },
+          0: { cellWidth: 8,  halign: 'center', textColor: [150, 150, 150] },
+          1: { cellWidth: 34, halign: 'left' },
           ...(totalColIdx > 0 ? { [totalColIdx]: { cellWidth: 12, fontStyle: 'bold', fillColor: [238, 240, 245] } } : {})
         },
         didParseCell: (data) => {
@@ -1045,7 +1055,7 @@ function exportAllPDF() {
             }
             return;
           }
-          if (data.section === 'body' && data.column.index > 0 && data.column.index < (totalColIdx > 0 ? totalColIdx : Infinity)) {
+          if (data.section === 'body' && data.column.index > 1 && data.column.index < (totalColIdx > 0 ? totalColIdx : Infinity)) {
             if (data.cell.raw === 'P') {
               data.cell.styles.fillColor = [220, 252, 231];
               data.cell.styles.textColor = [21, 128, 61];
@@ -1184,22 +1194,19 @@ function handleMappingOverlayClick(e) { if (e.target.id === 'edit-mapping-modal'
 
 function saveMappingEdit() {
   const newName  = document.getElementById('edit-teacher-name').value.trim();
-  const newEmail = document.getElementById('edit-teacher-email').value.trim();
   const newRole  = document.getElementById('edit-user-role').value;
   const newClass = newRole === 'teacher' ? (document.getElementById('edit-class-select').value || null) : null;
+  const origEmail = USERS[_editingUserIdx].email; // email is read-only, keep original
 
   if (!newName) { showToast('⚠️ Name required'); return; }
-  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-    showToast('⚠️ Valid email required'); return;
-  }
-  USERS[_editingUserIdx] = { ...USERS[_editingUserIdx], name: newName, email: newEmail, role: newRole, classId: newClass };
+  USERS[_editingUserIdx] = { ...USERS[_editingUserIdx], name: newName, email: origEmail, role: newRole, classId: newClass };
   saveUsers(USERS);
 
   // Also update CLASS_MAPPINGS teacher info if applicable
   if (newClass) {
     let overrides = {};
     try { overrides = JSON.parse(sessionStorage.getItem('mappingOverrides') || '{}'); } catch {}
-    overrides[newClass] = { teacher: newName, email: newEmail };
+    overrides[newClass] = { teacher: newName, email: origEmail };
     sessionStorage.setItem('mappingOverrides', JSON.stringify(overrides));
     CLASS_MAPPINGS = loadMappings();
     buildClassDropdown();

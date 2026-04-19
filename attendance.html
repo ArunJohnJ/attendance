@@ -565,18 +565,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <script>
-// ── Auth guard ────────────────────────────────────
-(function() {
-  // Restore sessionStorage from JWT if navigated to directly (e.g. bookmark/refresh)
-  if (!sessionStorage.getItem('authenticated')) {
-    const role = getRoleFromToken();
-    if (role === 'TEACHER') {
-      sessionStorage.setItem('authenticated', '1');
-    } else {
-      location.replace('index.html');
-    }
-  }
-})();
+// ── Auth guard — TEACHER only ─────────────────────
+// requireRole() is in auth.js — checks JWT role, expiry, and redirects if wrong
+requireRole(['TEACHER'], 'index.html');
 
 // ── Data ──────────────────────────────────────────
 const CLASS = {
@@ -721,12 +712,6 @@ function renderStudentList() {
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
-      </button>
-      <button class="delete-btn" onclick="deleteStudent('${escHtml(name)}')" title="Remove student" aria-label="Remove ${escHtml(name)}">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-        </svg>
       </button>`;
     list.appendChild(row);
   });
@@ -856,29 +841,29 @@ function confirmEditStudent() {
 // ── Build export data ─────────────────────────────
 function buildExportRows() {
   // Excel version — uses emoji (renders fine in xlsx)
-  const headers = ['Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total Days Present', ''];
-  const rows = CLASS.students.map(name => {
+  const headers = ['#', 'Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total Days Present', ''];
+  const rows = CLASS.students.map((name, rowIdx) => {
     const dayValues = DAYS.map(d => {
       const att = (attendance[activeClass] || {})[dateKey(d)] || {};
       return att[name] === true ? '✅' : att[name] === false ? '❌' : '';
     });
     const total = dayValues.filter(v => v === '✅').length;
-    return [name, ...dayValues, total, ''];
+    return [rowIdx + 1, name, ...dayValues, total, ''];
   });
   return { headers, rows };
 }
 
 function buildPdfRows() {
   // PDF version — uses ASCII-safe symbols that jsPDF renders correctly
-  // P = present (●), A = absent (✕)
-  const headers = ['Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total'];
-  const rows = CLASS.students.map(name => {
+  // P = present, A = absent
+  const headers = ['#', 'Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total'];
+  const rows = CLASS.students.map((name, rowIdx) => {
     const dayValues = DAYS.map(d => {
       const att = (attendance[activeClass] || {})[dateKey(d)] || {};
       return att[name] === true ? 'P' : att[name] === false ? 'A' : '-';
     });
     const total = dayValues.filter(v => v === 'P').length;
-    return [name, ...dayValues, total];
+    return [rowIdx + 1, name, ...dayValues, total];
   });
   return { headers, rows };
 }
@@ -895,7 +880,8 @@ function exportExcel() {
 
     // Column widths
     ws['!cols'] = [
-      { wch: 22 },
+      { wch: 5 },  // #
+      { wch: 22 }, // Student
       ...DAYS.map(() => ({ wch: 7 })),
       { wch: 18 },
       { wch: 6 }
@@ -909,7 +895,7 @@ function exportExcel() {
       ws[cellRef].s = {
         font: { bold: true, color: { rgb: 'FFFFFF' } },
         fill: { fgColor: { rgb: '6C63FF' } },
-        alignment: { horizontal: ci === 0 ? 'left' : 'center' }
+        alignment: { horizontal: ci === 1 ? 'left' : 'center' }
       };
     });
 
@@ -963,11 +949,12 @@ function exportPDF() {
       styles: { fontSize: 8, cellPadding: 2, halign: 'center' },
       headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold', halign: 'center' },
       columnStyles: {
-        0: { cellWidth: 36, halign: 'left' },
+        0: { cellWidth: 8,  halign: 'center', textColor: [150, 150, 150] },
+        1: { cellWidth: 36, halign: 'left' },
         [totalColIdx]: { cellWidth: 14, fontStyle: 'bold', fillColor: [238, 240, 245] }
       },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index > 0 && data.column.index < totalColIdx) {
+        if (data.section === 'body' && data.column.index > 1 && data.column.index < totalColIdx) {
           if (data.cell.raw === 'P') {
             data.cell.styles.fillColor  = [220, 252, 231]; // light green bg
             data.cell.styles.textColor  = [21, 128, 61];   // dark green text

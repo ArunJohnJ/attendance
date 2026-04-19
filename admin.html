@@ -149,6 +149,22 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // ── Show message if redirected here due to wrong role / expired token ─────
+  (function() {
+    const err = sessionStorage.getItem('authError');
+    if (err) {
+      sessionStorage.removeItem('authError');
+      const msgs = {
+        wrongRole:    '⛔ Access denied — Admin login required',
+        tokenExpired: '⏱️ Session expired — please log in again',
+        notLoggedIn:  '🔒 Please log in to continue',
+      };
+      // Delay so the toast element is ready
+      window.addEventListener('DOMContentLoaded', () =>
+        showToast(msgs[err] || '🔒 Please log in to continue', 4000));
+    }
+  })();
+
   if (getToken()) {
     // Restore sessionStorage from the JWT so the dashboard has role & email
     if (!sessionStorage.getItem('adminAuthenticated')) {

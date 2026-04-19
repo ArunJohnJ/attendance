@@ -18,7 +18,7 @@ function applyTheme(isLight) {
   const { moon, sun, label } = getThemeEls();
   moon?.style  && (moon.style.display  = isLight ? 'none' : '');
   sun?.style   && (sun.style.display   = isLight ? ''     : 'none');
-  label        && (label.textContent   = isLight ? 'Light' : 'Dark');
+  label        && (label.textContent   = isLight ? 'Dark' : 'Light');
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
