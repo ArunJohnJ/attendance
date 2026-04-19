@@ -103,6 +103,13 @@
 
     .role-card:active { transform: scale(0.97); }
 
+    .role-card.stats:hover,
+    .role-card.stats:focus {
+      border-color: var(--amber);
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
     .role-icon { font-size: 2.2rem; }
 
     .role-label {
@@ -155,7 +162,17 @@
 
   <div class="divider"></div>
   <div class="card-footer">
-    <a href="stats.html">📊 View Attendance Count</a>
+    <a class="role-card stats" href="stats.html" style="
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 18px 12px 16px;
+      border-radius: var(--radius-sm); border: 2px solid var(--border);
+      background: var(--surface-2); cursor: pointer; text-decoration: none;
+      color: var(--text-dim); transition: all 0.18s; width: 100%;
+      font-size: 0.82rem; font-weight: 700;
+    ">
+      <span style="font-size: 1.6rem;">📊</span>
+      <span>View Attendance Count</span>
+    </a>
   </div>
 </div>
 
