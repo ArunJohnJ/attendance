@@ -1280,7 +1280,7 @@
     }
 
     // ── Add Student ───────────────────────────────────
-    // ADD_STUDENT payload: { classId, name }
+    // ADD_STUDENT payload: { class, name }
     function openAddStudent() {
         document.getElementById('new-student-name').value = '';
         document.getElementById('add-student-modal').classList.add('open');
@@ -1311,7 +1311,7 @@
         const stopSpin = btnSpinner(btn);
         try {
             await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_STUDENT, {
-                body: {classId: activeClass, name}
+                body: {class: activeClass, name}
             });
             CLASS.students.push(name);
             updateStudentCount();
