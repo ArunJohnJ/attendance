@@ -1070,7 +1070,7 @@ function openMappingEdit(idx) {
 function closeMappingModal() { document.getElementById('edit-mapping-modal').classList.remove('open'); }
 function handleMappingOverlayClick(e) { if (e.target.id === 'edit-mapping-modal') closeMappingModal(); }
 
-// EDIT_USER payload: { id, name, role, classId }
+// EDIT_USER payload: { email, name, role, class }
 async function saveMappingEdit() {
   assertSuperAdmin();
   const user     = USERS[_editingUserIdx];
@@ -1081,25 +1081,24 @@ async function saveMappingEdit() {
   const btn = document.querySelector('#edit-mapping-modal .btn-primary');
   const stopSpin = btnSpinner(btn);
   try {
-    const updated = await apiCall(APP_CONFIG.LAMBDA_URLS.EDIT_USER, {
-      body: { id: user.id, name: newName, role: newRole, classId: newClass }
+    await apiCall(APP_CONFIG.LAMBDA_URLS.EDIT_USER, {
+      body: { email: user.email, name: newName, role: newRole, class: newClass }
     });
-    USERS[_editingUserIdx] = { ...user, ...updated, name: newName, role: newRole, class: newClass };
+    USERS[_editingUserIdx] = { ...user, name: newName, role: newRole, class: newClass };
     renderManageTable(); closeMappingModal(); showToast('✅ User updated');
   } catch (err) { showToast('❌ ' + err.message); }
   finally { stopSpin(); }
 }
 
-// ── DELETE_USER — payload: { id } ─────────────────
+// ── DELETE_USER — payload: { email } ──────────────
 async function deleteUser(idx) {
   assertSuperAdmin();
   const user = USERS[idx];
   if (!confirm(`Remove "${user.name}" (${user.email})?\nThis cannot be undone.`)) return;
-  // Find and spin the delete button for this row
   const allDeleteBtns = document.querySelectorAll('.row-delete-btn');
   const stopSpin = btnSpinner(allDeleteBtns[idx]);
   try {
-    await apiCall(APP_CONFIG.LAMBDA_URLS.DELETE_USER, { body: { id: user.id } });
+    await apiCall(APP_CONFIG.LAMBDA_URLS.DELETE_USER, { body: { email: user.email } });
     USERS.splice(idx, 1); renderManageTable(); showToast(`🗑️ Removed ${user.name}`);
   } catch (err) { stopSpin(); showToast('❌ ' + err.message); }
 }
@@ -1132,30 +1131,30 @@ function onAddClassChange() {
   if (val === '__new__') setTimeout(() => document.getElementById('add-new-class-name').focus(), 50);
 }
 
-// ── ADD_USER — payload: { name, email, role, classId, newClassName? } ─
+// ── ADD_USER — payload: { name, email, role, class, newClassName? } ─
 async function confirmAddUser() {
   assertSuperAdmin();
   const name  = document.getElementById('add-user-name').value.trim();
   const email = document.getElementById('add-user-email').value.trim();
   const role  = document.getElementById('add-user-role').value;
-  let classId = role === 'TEACHER' ? (document.getElementById('add-user-class').value || null) : null;
+  let selectedClass = role === 'TEACHER' ? (document.getElementById('add-user-class').value || null) : null;
   let newClassName = '';
 
   if (!name)  { showToast('⚠️ Name required'); return; }
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('⚠️ Valid email required'); return; }
-  if (classId === '__new__') {
+  if (selectedClass === '__new__') {
     newClassName = document.getElementById('add-new-class-name').value.trim();
     if (!newClassName) { showToast('⚠️ Please enter a class name'); return; }
-    classId = null; // backend will create and return new classId
+    selectedClass = null; // backend will create and return new class
   }
 
   const btn = document.querySelector('#add-user-modal .btn-primary');
   const stopSpin = btnSpinner(btn);
   try {
-    const payload = { name, email, role, classId };
+    const payload = { name, email, role, class: selectedClass };
     if (newClassName) payload.newClassName = newClassName;
-    const newUser = await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_USER, { body: payload });
-    USERS.push(newUser);
+    await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_USER, { body: payload });
+    USERS.push({ name, email, role, class: selectedClass });
     renderManageTable();
     closeAddUserModal();
     buildClassDropdown();
