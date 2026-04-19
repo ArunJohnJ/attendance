@@ -32,6 +32,7 @@ jobs:
           sed \
             -e "s|GOOGLE_CLIENT_ID|${{ secrets.GOOGLE_CLIENT_ID }}|g" \
             -e "s|LAMBDA_GET_ATTENDANCE|${{ secrets.LAMBDA_GET_ATTENDANCE }}|g" \
+            -e "s|LAMBDA_GET_TEACHERS|${{ secrets.LAMBDA_GET_TEACHERS }}|g" \
             -e "s|LAMBDA_MARK_ATTENDANCE|${{ secrets.LAMBDA_MARK_ATTENDANCE }}|g" \
             -e "s|LAMBDA_LOGIN|${{ secrets.LAMBDA_LOGIN }}|g" \
             -e "s|LAMBDA_SUMMARY|${{ secrets.LAMBDA_SUMMARY }}|g" \

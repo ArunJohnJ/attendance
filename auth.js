@@ -61,6 +61,16 @@ function getRoleFromToken() {
 }
 
 /**
+ * Returns the class embedded in the JWT, or null.
+ */
+function getClassFromToken() {
+  const token = getToken();
+  if (!token) return null;
+  const payload = decodeToken(token);
+  return (payload && payload.class) ? payload.class : null;
+}
+
+/**
  * Returns the email embedded in the JWT, or null.
  */
 function getEmailFromToken() {

@@ -181,6 +181,7 @@
           resetBtn(); return;
         }
         showToast('🔄 Verifying…');
+        const stopSpin = btnSpinner(btn);
         apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code: response.code }, auth: false })
         .then(data => {
           const role = data.role;
@@ -196,6 +197,7 @@
           }
         })
         .catch(err => {
+          stopSpin();
           setError(err.message || 'Login failed. Please try again.');
           resetBtn();
         });

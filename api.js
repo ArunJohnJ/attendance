@@ -3,8 +3,9 @@
 //
 // When auth=true (default):
 //   • Authorization: Bearer <token>  header added from localStorage
-//   • caller's email injected into every POST/PUT/PATCH body as { email }
-//     so the backend can audit who made the call
+//   • caller's email injected into every authenticated request body as { email }
+//     — even when no body was originally passed (e.g. GET-style calls) —
+//     so the backend audit log always captures who made the call
 //   Pass auth:false for public/unauthenticated endpoints (e.g. LOGIN, SUMMARY)
 
 /**
@@ -16,7 +17,26 @@
  * @param {boolean} [options.auth=true]    - Include Authorization: Bearer <token> header
  * @returns {Promise<any>}
  */
+/**
+ * Redirect to the appropriate login page based on the current page,
+ * then stop all further execution by throwing.
+ */
+function _redirectToLogin(reason) {
+  clearSession();
+  sessionStorage.setItem('authError', reason);
+  const isAdmin = location.pathname.includes('admin-dashboard');
+  location.replace(isAdmin ? 'admin.html' : 'teachers.html');
+  throw new Error('Session expired. Please log in again.');
+}
+
 async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
+  // ── Proactive token-expiry check ─────────────────────────────────────────
+  // Check BEFORE the network call so the redirect is immediate and never
+  // races with a catch block in the calling page.
+  if (auth && isTokenExpired()) {
+    _redirectToLogin('tokenExpired');
+  }
+
   // Build URL with optional query params
   if (queryParams && Object.keys(queryParams).length > 0) {
     url = `${url}?${new URLSearchParams(queryParams)}`;
@@ -29,11 +49,13 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Inject caller email into body for every authenticated request
+  // Inject caller email into body for every authenticated request.
+  // Even if no body was provided, create one with just { email } so the
+  // audit log in BaseHandler always captures the caller.
   let finalBody = body;
-  if (auth && body !== undefined) {
+  if (auth) {
     const callerEmail = getEmailFromToken(); // from auth.js
-    if (callerEmail) finalBody = { ...body, email: callerEmail };
+    if (callerEmail) finalBody = { ...(body ?? {}), email: callerEmail };
   }
 
   // Resolve method
@@ -48,10 +70,7 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
 
   // 401 — expired / invalid token
   if (response.status === 401) {
-    clearSession(); // from auth.js
-    sessionStorage.setItem('authError', 'tokenExpired');
-    location.href = 'index.html';
-    throw new Error('Session expired. Please log in again.');
+    _redirectToLogin('tokenExpired');
   }
 
   // Other non-2xx
