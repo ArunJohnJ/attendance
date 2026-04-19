@@ -882,9 +882,76 @@ function renderAllDatesReport(classes) {
   document.getElementById('sum-total').textContent   = grandTotal;
 }
 
-// ── Export (placeholder — wired to live data once backend ready) ───
-function exportAllExcel() { showToast('⚠️ Connect backend data first'); }
-function exportAllPDF()   { showToast('⚠️ Connect backend data first'); }
+// ── Export helpers ────────────────────────────────
+function getExportRows() {
+  // Collect rows from whatever is currently rendered in the report
+  const rows = [];
+  if (viewMode === 'single') {
+    const date = dateKey(DAYS[activeDay]);
+    document.querySelectorAll('#report-output .class-section-wrap').forEach(wrap => {
+      const className = wrap.querySelector('.class-section-name')?.textContent || '';
+      const teacher   = wrap.querySelector('.class-section-teacher')?.textContent.replace('👤 ', '') || '';
+      wrap.querySelectorAll('.att-table tbody tr').forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        rows.push({
+          Class: className,
+          Teacher: teacher,
+          Student: tds[1]?.textContent || '',
+          Date: date,
+          Status: tds[2]?.textContent.includes('✅') ? 'Present' : 'Absent'
+        });
+      });
+    });
+  } else {
+    document.querySelectorAll('#report-output .class-section-wrap').forEach(wrap => {
+      const className = wrap.querySelector('.class-section-name')?.textContent || '';
+      const teacher   = wrap.querySelector('.class-section-teacher')?.textContent.replace('👤 ', '') || '';
+      const ths = [...wrap.querySelectorAll('.att-table thead th')].slice(2);
+      wrap.querySelectorAll('.att-table tbody tr').forEach(tr => {
+        const tds = [...tr.querySelectorAll('td')];
+        const name = tds[1]?.textContent || '';
+        tds.slice(2, tds.length - 1).forEach((td, i) => {
+          rows.push({
+            Class: className,
+            Teacher: teacher,
+            Student: name,
+            Date: ths[i]?.textContent || '',
+            Status: td.textContent.includes('✅') ? 'Present' : 'Absent'
+          });
+        });
+      });
+    });
+  }
+  return rows;
+}
+
+function exportAllExcel() {
+  const rows = getExportRows();
+  if (!rows.length) { showToast('⚠️ No data to export'); return; }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+  XLSX.writeFile(wb, 'attendance.xlsx');
+  showToast('✅ Excel downloaded');
+}
+
+function exportAllPDF() {
+  const rows = getExportRows();
+  if (!rows.length) { showToast('⚠️ No data to export'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape' });
+  doc.setFontSize(13);
+  doc.text('VBS 2026 — Attendance Report', 14, 15);
+  doc.autoTable({
+    startY: 22,
+    head: [['Class', 'Teacher', 'Student', 'Date', 'Status']],
+    body: rows.map(r => [r.Class, r.Teacher, r.Student, r.Date, r.Status]),
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [108, 99, 255] }
+  });
+  doc.save('attendance.pdf');
+  showToast('✅ PDF downloaded');
+}
 
 // ══════════════════════════════════════════════════
 //  MANAGE ACCESS (SUPER-ADMIN only)
