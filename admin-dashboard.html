@@ -686,7 +686,8 @@ async function buildClassDropdown() {
   sel.innerHTML = '<option value="ALL">All Classes</option>';
   try {
     const data = await apiCall(APP_CONFIG.LAMBDA_URLS.DISTINCT_CLASSES);
-    const list = Array.isArray(data) ? data : (data.classes || []);
+    const raw = Array.isArray(data) ? data : (data.response || []);
+    const list = raw.map(cls => typeof cls === 'string' ? { id: cls, name: cls } : cls);
     list.forEach(cls => {
       const opt = document.createElement('option');
       opt.value = cls.id;
@@ -747,7 +748,7 @@ async function loadSpecificDate() {
   const date = dateKey(DAYS[activeDay]);
   try {
     const data = await apiCall(APP_CONFIG.LAMBDA_URLS.VIEW_STUDENTS_SPECIFIC_DATE, {
-      body: { classId: activeClassId, date }
+      body: { class: activeClassId, date }
     });
     const classes = Array.isArray(data) ? data : (data.classes || (data.classId ? [data] : []));
     renderSpecificDateReport(classes);
@@ -808,7 +809,7 @@ async function loadAllDates() {
   setReportLoading();
   try {
     const data = await apiCall(APP_CONFIG.LAMBDA_URLS.VIEW_STUDENTS_ALL_DATES, {
-      body: { classId: activeClassId }
+      body: { class: activeClassId }
     });
     const classes = Array.isArray(data) ? data : (data.classes || (data.classId ? [data] : []));
     renderAllDatesReport(classes);
@@ -973,7 +974,7 @@ async function loadUsers() {
     </span></td></tr>`;
   try {
     const data = await apiCall(APP_CONFIG.LAMBDA_URLS.GET_USERS);
-    USERS = Array.isArray(data) ? data : (data.users || []);
+    USERS = Array.isArray(data) ? data : (data.response || data.users || []);
     renderManageTable();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--red)">❌ ${err.message}</td></tr>`;
@@ -1024,7 +1025,8 @@ async function populateClassDropdown(selectId, selectedClassId, includeNewClass)
   sel.innerHTML = '<option value="">— Loading… —</option>';
   try {
     const data = await apiCall(APP_CONFIG.LAMBDA_URLS.DISTINCT_CLASSES);
-    const list = Array.isArray(data) ? data : (data.classes || []);
+    const raw = Array.isArray(data) ? data : (data.response || []);
+    const list = raw.map(cls => typeof cls === 'string' ? { id: cls, name: cls } : cls);
     sel.innerHTML = '<option value="">— None (unassigned) —</option>';
     list.forEach(cls => {
       const opt = document.createElement('option');
