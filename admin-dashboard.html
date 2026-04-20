@@ -864,17 +864,18 @@ function renderAllDatesReport(classes) {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${ri+1}</td><td style="text-align:left;font-weight:600">${s.name}</td>`;
       let total = 0;
-      DAYS.forEach((d, i) => {
-        const rawVal = (s.attendance || {})[dateKey(d)];
-        const isP = !!rawVal;
-        if (isP) total++;
-        const td = document.createElement('td');
-        td.className = isP ? 'cell-p' : 'cell-a';
-        if (i === activeDay) td.classList.add('col-active');
-        td.dataset.val = rawVal == null ? '' : String(rawVal);
-        td.textContent = isP ? '✅' : '❌';
-        tr.appendChild(td);
-      });
+        DAYS.forEach((d, i) => {
+          const rawVal = (s.attendance || {})[dateKey(d)];
+          const isP = rawVal === true;
+          const isA = rawVal === false;
+          if (isP) total++;
+          const td = document.createElement('td');
+          td.className = isP ? 'cell-p' : isA ? 'cell-a' : 'cell-dash';
+          if (i === activeDay) td.classList.add('col-active');
+          td.dataset.val = rawVal == null ? '' : String(rawVal);
+          td.textContent = isP ? '✅' : isA ? '❌' : '-';
+          tr.appendChild(td);
+        });
       const tdTot = document.createElement('td'); tdTot.textContent = total; tr.appendChild(tdTot);
       tbody.appendChild(tr);
     });
