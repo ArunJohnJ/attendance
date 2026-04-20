@@ -20,6 +20,7 @@
       --amber: #f59e0b; --amber-bg: #451a03;
       --muted: #6b7280; --text: #e5e7eb; --text-dim: #9ca3af;
       --radius: 12px; --radius-sm: 8px;
+      --topbar-h: 57px;
     }
     :root.light {
       --bg: #f0f2f8; --surface: #ffffff; --surface-2: #eef0f5;
@@ -206,6 +207,7 @@
 
     /* ── Attendance Table ────────────────────────── */
     .table-scroll { overflow-x: auto; border-radius: var(--radius); position: relative; }
+    .table-scroll.all-dates-scroll { overflow-y: auto; max-height: calc(100vh - var(--topbar-h) - 40px); }
     .att-table {
       width: 100%; border-collapse: separate; border-spacing: 0;
       background: var(--surface); border: 1px solid var(--border);
@@ -217,6 +219,12 @@
       text-transform: uppercase; letter-spacing: 0.05em; color: #fff;
       text-align: center; white-space: nowrap;
       border-bottom: 1px solid rgba(255,255,255,0.15);
+      /* ── Sticky header row (vertical scroll) ─── */
+      position: sticky; top: var(--topbar-h); z-index: 2;
+      background: var(--accent);
+    }
+    .all-dates-scroll .att-table thead th {
+      top: 0;
     }
     /* ── Sticky # and Student columns ───────────── */
     .att-table thead th:first-child,
@@ -227,7 +235,7 @@
       border-right: 1px solid var(--border);
     }
     .att-table thead th:first-child {
-      background: var(--accent); z-index: 3;
+      background: var(--accent); z-index: 4; /* sticky both ways — higher z */
       border-right: 1px solid rgba(255,255,255,0.2);
     }
     .att-table thead th:nth-child(2),
@@ -240,7 +248,7 @@
       box-shadow: 3px 0 6px -2px rgba(0,0,0,0.25);
     }
     .att-table thead th:nth-child(2) {
-      background: var(--accent); z-index: 3; font-weight: 700;
+      background: var(--accent); z-index: 4; font-weight: 700; /* sticky both ways — higher z */
       border-right: 2px solid rgba(255,255,255,0.2);
       box-shadow: 3px 0 6px -2px rgba(0,0,0,0.35);
     }
@@ -249,7 +257,8 @@
     .att-table tbody td:first-child { font-weight: 400; color: var(--muted); }
     .att-table tbody td:nth-child(2) { font-weight: 600; }
     /* ─────────────────────────────────────────────── */
-    .att-table thead th:last-child { background: rgba(0,0,0,0.2); }
+    /* Total column styling — only for all-dates tables */
+    .att-table.all-dates-table thead th:last-child { background: rgba(0,0,0,0.2); }
     .att-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
     .att-table tbody tr:last-child td { border-bottom: none; }
     .att-table tbody tr:hover { background: var(--surface-2); }
@@ -258,7 +267,7 @@
       border-bottom: 1px solid var(--border);
     }
     .att-table tbody tr:last-child td { border-bottom: none; }
-    .att-table tbody td:last-child { font-weight: 700; background: rgba(34,197,94,0.06); }
+    .att-table.all-dates-table tbody td:last-child { font-weight: 700; background: rgba(34,197,94,0.06); }
 
     /* Highlighted column for selected date */
     .att-table th.col-active  { background: rgba(255,255,255,0.28) !important; outline: 2px solid rgba(255,255,255,0.5); outline-offset: -2px; }
@@ -928,8 +937,8 @@ function renderAllDatesReport(classes) {
         <span class="class-section-badge">${present} / ${total} present</span>
       </div>`;
 
-    const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll';
-    const table = document.createElement('table'); table.className = 'att-table';
+    const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll all-dates-scroll';
+    const table = document.createElement('table'); table.className = 'att-table all-dates-table';
 
     const thRow = document.createElement('tr');
     thRow.innerHTML = '<th>#</th><th style="text-align:left">Student</th>';
@@ -1290,6 +1299,18 @@ async function confirmAddUser() {
 buildClassDropdown();
 buildDateStrip();
 renderReport(); // loads VIEW_STUDENTS_SPECIFIC_DATE for today by default
+
+// ── Sync sticky header top to actual top-bar height ──
+(function syncStickyTop() {
+  const topBar = document.querySelector('.top-bar');
+  if (!topBar) return;
+  const update = () => {
+    const h = topBar.getBoundingClientRect().height;
+    document.documentElement.style.setProperty('--topbar-h', h + 'px');
+  };
+  update();
+  new ResizeObserver(update).observe(topBar);
+})();
 </script>
 </body>
 </html>
