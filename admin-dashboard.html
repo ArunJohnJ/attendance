@@ -1184,14 +1184,13 @@ async function confirmAddUser() {
   if (selectedClass === '__new__') {
     newClassName = document.getElementById('add-new-class-name').value.trim();
     if (!newClassName) { showToast('⚠️ Please enter a class name'); return; }
-    selectedClass = null; // backend will create and return new class
+    selectedClass = newClassName; // use the new class name directly as the class value
   }
 
   const btn = document.querySelector('#add-user-modal .btn-primary');
   const stopSpin = btnSpinner(btn);
   try {
     const payload = { name, email, role, class: selectedClass };
-    if (newClassName) payload.newClassName = newClassName;
     await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_USER, { body: payload });
     USERS.push({ name, email, role, class: selectedClass });
     closeAddUserModal();
