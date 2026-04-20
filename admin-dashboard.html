@@ -219,12 +219,11 @@
       text-transform: uppercase; letter-spacing: 0.05em; color: #fff;
       text-align: center; white-space: nowrap;
       border-bottom: 1px solid rgba(255,255,255,0.15);
-      /* ── Sticky header row (vertical scroll) ─── */
-      position: sticky; top: var(--topbar-h); z-index: 2;
       background: var(--accent);
     }
+    /* ── Sticky header only for All Dates view ─── */
     .all-dates-scroll .att-table thead th {
-      top: 0;
+      position: sticky; top: 0; z-index: 3;
     }
     /* ── Sticky # and Student columns ───────────── */
     .att-table thead th:first-child,
