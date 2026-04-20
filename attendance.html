@@ -1420,7 +1420,7 @@
             const date = r.date;
             if (date) {
                 if (!byDate[date]) byDate[date] = {};
-                byDate[date][r.name] = r.attendanceStatus === 'P';
+                byDate[date][r.name] = r.attendanceStatus === 'P' ? true : r.attendanceStatus === 'A' ? false : null;
             }
         });
 
@@ -1433,7 +1433,8 @@
         const rows = students.map(({name}, rowIdx) => {
             const dayValues = DAYS.map(d => {
                 const att = byDate[dateKey(d)] || {};
-                return att[name] === true ? '✅' : att[name] === false ? '❌' : '';
+                const v = att[name];
+                return v === true ? '✅' : v === false ? '❌' : '-';
             });
             return [rowIdx + 1, name, ...dayValues, dayValues.filter(v => v === '✅').length, ''];
         });
@@ -1445,7 +1446,8 @@
         const rows = students.map(({name}, rowIdx) => {
             const dayValues = DAYS.map(d => {
                 const att = byDate[dateKey(d)] || {};
-                return att[name] === true ? 'P' : att[name] === false ? 'A' : '';
+                const v = att[name];
+                return v === true ? 'P' : v === false ? 'A' : '-';
             });
             return [rowIdx + 1, name, ...dayValues, dayValues.filter(v => v === 'P').length];
         });

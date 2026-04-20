@@ -929,7 +929,7 @@ function exportAllExcel() {
     const generatedRow = [`Generated: ${new Date().toLocaleString()}`];
     const headers = ['#', 'Student', ...cls.dateHeaders, 'Total Days Present', ''];
     const rows = cls.students.map((s, i) => {
-      const dayVals = s.days.map(d => d === 'P' ? '✅' : d === 'A' ? '❌' : '');
+      const dayVals = s.days.map(d => d === 'P' ? '✅' : d === 'A' ? '❌' : '-');
       return [i + 1, s.name, ...dayVals, s.total, ''];
     });
     const ws = XLSX.utils.aoa_to_sheet([titleRow, generatedRow, [], headers, ...rows]);
@@ -953,7 +953,7 @@ function exportAllPDF() {
     firstPage = false;
 
     const headers = ['#', 'Student', ...cls.dateHeaders, 'Total'];
-    const rows = cls.students.map((s, i) => [i + 1, s.name, ...s.days, s.total]);
+    const rows = cls.students.map((s, i) => [i + 1, s.name, ...s.days.map(v => v === '' ? '-' : v), s.total]);
 
     doc.setFontSize(14);
     doc.setTextColor(30);
