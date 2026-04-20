@@ -52,10 +52,13 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
   // Inject caller email into body for every authenticated request.
   // Even if no body was provided, create one with just { email } so the
   // audit log in BaseHandler always captures the caller.
+  // Exception: if body is an array, skip email injection (can't spread into array).
   let finalBody = body;
   if (auth) {
     const callerEmail = getEmailFromToken(); // from auth.js
-    if (callerEmail) finalBody = { ...(body ?? {}), email: callerEmail };
+    if (callerEmail && !Array.isArray(body)) {
+      finalBody = { ...(body ?? {}), email: callerEmail };
+    }
   }
 
   // Resolve method

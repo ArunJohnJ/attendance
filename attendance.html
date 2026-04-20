@@ -1073,7 +1073,7 @@
             const records = data.response || [];
 
             // Rebuild student list from this date's response
-            CLASS.students = records.map(r => r.name);
+            CLASS.students = records.map(r => ({id: r.studentId, name: r.name}));
 
             if (!attendance[activeClass]) attendance[activeClass] = {};
             attendance[activeClass][key] = {};
@@ -1165,7 +1165,7 @@
         const list = document.getElementById('student-list');
         list.innerHTML = '';
 
-        CLASS.students.forEach(name => {
+        CLASS.students.forEach(({id, name}) => {
             const isPresent = !!dayAtt[name];
             const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2);
             const row = document.createElement('div');
@@ -1192,7 +1192,7 @@
            onkeydown="if(event.key===' '||event.key==='Enter'){toggleStudent('${escHtml(name)}')}">
         <span class="check-icon">✓</span>
       </div>
-      <button class="edit-btn" onclick="openEditStudent('${escHtml(name)}')" title="Edit name" aria-label="Edit ${escHtml(name)}">
+      <button class="edit-btn" onclick="openEditStudent('${escHtml(id)}', '${escHtml(name)}')" title="Edit name" aria-label="Edit ${escHtml(name)}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -1241,7 +1241,7 @@
         if (!attendance[activeClass]) attendance[activeClass] = {};
         if (!attendance[activeClass][key]) attendance[activeClass][key] = {};
         CLASS.students.forEach(s => {
-            attendance[activeClass][key][s] = present;
+            attendance[activeClass][key][s.name] = present;
         });
         renderStudentList();
     }
@@ -1250,7 +1250,7 @@
         const key = dateKey(DAYS[activeDay]);
         const dayAtt = (attendance[activeClass] || {})[key] || {};
         const total = CLASS.students.length;
-        const present = CLASS.students.filter(s => !!dayAtt[s]).length;
+        const present = CLASS.students.filter(s => !!dayAtt[s.name]).length;
         document.getElementById('present-count').textContent = present;
         document.getElementById('absent-count').textContent = total - present;
         document.getElementById('total-count').textContent = total;
@@ -1258,18 +1258,26 @@
     }
 
     // ── Submit Attendance ─────────────────────────────
-    // MARK_ATTENDANCE payload: { classId, date, records: { studentName: bool } }
+    // MARK_ATTENDANCE payload: JSON array of { studentId, date, class, attendanceStatus }
     async function submitAttendance() {
         const key = dateKey(DAYS[activeDay]);
         const dayAtt = (attendance[activeClass] || {})[key] || {};
         const total = CLASS.students.length;
-        const present = CLASS.students.filter(s => !!dayAtt[s]).length;
+        const present = CLASS.students.filter(s => !!dayAtt[s.name]).length;
+
+        // Build array expected by backend
+        const records = CLASS.students.map(s => ({
+            studentId: s.id,
+            date: key,
+            class: activeClass,
+            attendanceStatus: dayAtt[s.name] ? 'P' : 'A'
+        }));
 
         const btn = document.querySelector('.submit-btn');
         const stopSpin = btnSpinner(btn);
         try {
             await apiCall(APP_CONFIG.LAMBDA_URLS.MARK_ATTENDANCE, {
-                body: {classId: activeClass, date: key, records: dayAtt}
+                body: records
             });
             showToast(`✅ Submitted! ${present}/${total} present`);
         } catch (err) {
@@ -1302,7 +1310,7 @@
             showToast('⚠️ Please enter a name');
             return;
         }
-        if (CLASS.students.includes(name)) {
+        if (CLASS.students.some(s => s.name === name)) {
             showToast('⚠️ Student already exists');
             return;
         }
@@ -1310,10 +1318,10 @@
         const btn = document.querySelector('#add-student-modal .btn-primary');
         const stopSpin = btnSpinner(btn);
         try {
-            await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_STUDENT, {
+            const res = await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_STUDENT, {
                 body: {class: activeClass, name}
             });
-            CLASS.students.push(name);
+            CLASS.students.push({id: res.studentId, name});
             updateStudentCount();
             renderStudentList();
             closeAddStudent();
@@ -1326,10 +1334,12 @@
     }
 
     // ── Edit Student ──────────────────────────────────
-    // EDIT_STUDENT payload: { classId, oldName, newName }
+    // EDIT_STUDENT payload: { class, studentId, name }
     let _editingName = '';
+    let _editingId = '';
 
-    function openEditStudent(name) {
+    function openEditStudent(studentId, name) {
+        _editingId = studentId;
         _editingName = name;
         document.getElementById('edit-student-name').value = name;
         document.getElementById('edit-student-modal').classList.add('open');
@@ -1355,7 +1365,7 @@
             closeEditStudent();
             return;
         }
-        if (CLASS.students.includes(newName)) {
+        if (CLASS.students.some(s => s.name === newName && s.id !== _editingId)) {
             showToast('⚠️ Student already exists');
             return;
         }
@@ -1364,16 +1374,19 @@
         const stopSpin = btnSpinner(btn);
         try {
             await apiCall(APP_CONFIG.LAMBDA_URLS.EDIT_STUDENT, {
-                body: {classId: activeClass, oldName: _editingName, newName}
+                body: {class: activeClass, studentId: _editingId, name: newName}
             });
-            const idx = CLASS.students.indexOf(_editingName);
-            if (idx !== -1) CLASS.students[idx] = newName;
-            Object.values(attendance[activeClass] || {}).forEach(dayRec => {
-                if (_editingName in dayRec) {
-                    dayRec[newName] = dayRec[_editingName];
-                    delete dayRec[_editingName];
-                }
-            });
+            const student = CLASS.students.find(s => s.id === _editingId);
+            if (student) {
+                const oldName = student.name;
+                student.name = newName;
+                Object.values(attendance[activeClass] || {}).forEach(dayRec => {
+                    if (oldName in dayRec) {
+                        dayRec[newName] = dayRec[oldName];
+                        delete dayRec[oldName];
+                    }
+                });
+            }
             updateStudentCount();
             renderStudentList();
             closeEditStudent();
@@ -1386,11 +1399,40 @@
     }
 
     // ── Export helpers ────────────────────────────────
-    function buildExportRows() {
+    /**
+     * Fetches all-days attendance from GET_ALL_DAYS_ATTENDANCE and converts it
+     * into the same { classId: { 'YYYY-MM-DD': { studentName: bool } } } shape
+     * used by the in-memory attendance cache, plus an ordered student list.
+     * Returns { students: [{id, name}], byDate: { 'YYYY-MM-DD': { name: bool } } }
+     */
+    async function fetchAllDaysForExport() {
+        const data = await apiCall(APP_CONFIG.LAMBDA_URLS.GET_ALL_DAYS_ATTENDANCE, {
+            body: {class: activeClass}
+        });
+        const records = data.response || [];
+
+        // Deduplicate students (ordered by first appearance)
+        const studentMap = new Map(); // id -> name
+        const byDate = {};            // date -> { name: bool }
+
+        records.forEach(r => {
+            if (r.studentId && r.name) studentMap.set(r.studentId, r.name);
+            const date = r.date;
+            if (date) {
+                if (!byDate[date]) byDate[date] = {};
+                byDate[date][r.name] = r.attendanceStatus === 'P';
+            }
+        });
+
+        const students = [...studentMap.entries()].map(([id, name]) => ({id, name}));
+        return {students, byDate};
+    }
+
+    function buildExportRows(students, byDate) {
         const headers = ['#', 'Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total Days Present', ''];
-        const rows = CLASS.students.map((name, rowIdx) => {
+        const rows = students.map(({name}, rowIdx) => {
             const dayValues = DAYS.map(d => {
-                const att = (attendance[activeClass] || {})[dateKey(d)] || {};
+                const att = byDate[dateKey(d)] || {};
                 return att[name] === true ? '✅' : att[name] === false ? '❌' : '';
             });
             return [rowIdx + 1, name, ...dayValues, dayValues.filter(v => v === '✅').length, ''];
@@ -1398,22 +1440,33 @@
         return {headers, rows};
     }
 
-    function buildPdfRows() {
+    function buildPdfRows(students, byDate) {
         const headers = ['#', 'Student', ...DAYS.map(d => `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`), 'Total'];
-        const rows = CLASS.students.map((name, rowIdx) => {
+        const rows = students.map(({name}, rowIdx) => {
             const dayValues = DAYS.map(d => {
-                const att = (attendance[activeClass] || {})[dateKey(d)] || {};
-                return att[name] === true ? 'P' : att[name] === false ? 'A' : '-';
+                const att = byDate[dateKey(d)] || {};
+                return att[name] === true ? 'P' : att[name] === false ? 'A' : '';
             });
             return [rowIdx + 1, name, ...dayValues, dayValues.filter(v => v === 'P').length];
         });
         return {headers, rows};
     }
 
-    function exportExcel() {
+    async function exportExcel() {
+        showToast('⏳ Loading all attendance data…');
+        let students, byDate;
         try {
-            const {headers, rows} = buildExportRows();
-            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ({students, byDate} = await fetchAllDaysForExport());
+        } catch (e) {
+            showToast('❌ Failed to load attendance data');
+            console.error(e);
+            return;
+        }
+        try {
+            const {headers, rows} = buildExportRows(students, byDate);
+            const teacherLine = CLASS.teacher_name ? `Teacher(s): ${CLASS.teacher_name}` : '';
+            const titleRow = [`${CLASS.name}${teacherLine ? '  |  ' + teacherLine : ''}`];
+            const ws = XLSX.utils.aoa_to_sheet([titleRow, [], headers, ...rows]);
             ws['!cols'] = [{wch: 5}, {wch: 22}, ...DAYS.map(() => ({wch: 7})), {wch: 18}, {wch: 6}];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
@@ -1426,18 +1479,32 @@
         }
     }
 
-    function exportPDF() {
+    async function exportPDF() {
+        showToast('⏳ Loading all attendance data…');
+        let students, byDate;
+        try {
+            ({students, byDate} = await fetchAllDaysForExport());
+        } catch (e) {
+            showToast('❌ Failed to load attendance data');
+            console.error(e);
+            return;
+        }
         try {
             const {jsPDF} = window.jspdf;
             const doc = new jsPDF({orientation: 'landscape', unit: 'mm', format: 'a4'});
-            const {headers, rows} = buildPdfRows();
+            const {headers, rows} = buildPdfRows(students, byDate);
             doc.setFontSize(14);
             doc.text(`Attendance Report — ${CLASS.name}`, 14, 15);
             doc.setFontSize(9);
             doc.setTextColor(120);
-            doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
+            if (CLASS.teacher_name) {
+                doc.text(`Teacher(s): ${CLASS.teacher_name}`, 14, 21);
+                doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 26);
+            } else {
+                doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
+            }
             doc.autoTable({
-                head: [headers], body: rows, startY: 26,
+                head: [headers], body: rows, startY: CLASS.teacher_name ? 31 : 26,
                 styles: {fontSize: 8, cellPadding: 2, halign: 'center'},
                 headStyles: {fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold'},
                 columnStyles: {
@@ -1455,8 +1522,6 @@
                             data.cell.styles.fillColor = [254, 226, 226];
                             data.cell.styles.textColor = [185, 28, 28];
                             data.cell.styles.fontStyle = 'bold';
-                        } else if (data.cell.raw === '-') {
-                            data.cell.styles.textColor = [180, 180, 180];
                         }
                     }
                 }

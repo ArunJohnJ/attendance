@@ -789,8 +789,9 @@ function renderSpecificDateReport(classes) {
     const tbody = document.createElement('tbody');
     students.forEach((s, i) => {
       const tr = document.createElement('tr');
+      const presentVal = s.present == null ? '' : String(s.present);
       tr.innerHTML = `<td>${i+1}</td><td style="text-align:left;font-weight:600">${s.name}</td>
-        <td class="col-active ${s.present ? 'cell-p' : 'cell-a'}">${s.present ? '✅' : '❌'}</td>`;
+        <td class="col-active ${s.present ? 'cell-p' : 'cell-a'}" data-val="${presentVal}">${s.present ? '✅' : '❌'}</td>`;
       tbody.appendChild(tr);
     });
     table.appendChild(tbody); scrollDiv.appendChild(table); wrap.appendChild(scrollDiv);
@@ -864,11 +865,13 @@ function renderAllDatesReport(classes) {
       tr.innerHTML = `<td>${ri+1}</td><td style="text-align:left;font-weight:600">${s.name}</td>`;
       let total = 0;
       DAYS.forEach((d, i) => {
-        const isP = !!(s.attendance || {})[dateKey(d)];
+        const rawVal = (s.attendance || {})[dateKey(d)];
+        const isP = !!rawVal;
         if (isP) total++;
         const td = document.createElement('td');
         td.className = isP ? 'cell-p' : 'cell-a';
         if (i === activeDay) td.classList.add('col-active');
+        td.dataset.val = rawVal == null ? '' : String(rawVal);
         td.textContent = isP ? '✅' : '❌';
         tr.appendChild(td);
       });
@@ -900,7 +903,7 @@ function getExportRows() {
           Teacher: teacher,
           Student: tds[1]?.textContent || '',
           Date: date,
-          Status: tds[2]?.textContent.includes('✅') ? 'Present' : 'Absent'
+          Status: tds[2]?.dataset.val === 'true' ? 'Present' : tds[2]?.dataset.val === 'false' ? 'Absent' : ''
         });
       });
     });
@@ -918,7 +921,7 @@ function getExportRows() {
             Teacher: teacher,
             Student: name,
             Date: ths[i]?.textContent || '',
-            Status: td.textContent.includes('✅') ? 'Present' : 'Absent'
+            Status: td.dataset.val === 'true' ? 'Present' : td.dataset.val === 'false' ? 'Absent' : ''
           });
         });
       });
@@ -962,7 +965,7 @@ function exportAllPDF() {
 let USERS = [];
 
 // ── GET_USERS ─────────────────────────────────────
-// Response: [{ id, name, email, role, class }]
+// Response: [{ name, email, role, class }]
 async function loadUsers() {
   assertSuperAdmin();
   const tbody = document.getElementById('manage-tbody');
@@ -975,7 +978,7 @@ async function loadUsers() {
     </span></td></tr>`;
   try {
     const data = await apiCall(APP_CONFIG.LAMBDA_URLS.GET_USERS);
-    USERS = Array.isArray(data) ? data : (data.response || data.users || []);
+    USERS = Array.isArray(data) ? data : (data.response || []);
     renderManageTable();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--red)">❌ ${err.message}</td></tr>`;
@@ -1085,7 +1088,7 @@ async function saveMappingEdit() {
       body: { email: user.email, name: newName, role: newRole, class: newClass }
     });
     USERS[_editingUserIdx] = { ...user, name: newName, role: newRole, class: newClass };
-    renderManageTable(); closeMappingModal(); showToast('✅ User updated');
+    closeMappingModal(); showToast('✅ User updated'); await loadUsers();
   } catch (err) { showToast('❌ ' + err.message); }
   finally { stopSpin(); }
 }
@@ -1099,7 +1102,7 @@ async function deleteUser(idx) {
   const stopSpin = btnSpinner(allDeleteBtns[idx]);
   try {
     await apiCall(APP_CONFIG.LAMBDA_URLS.DELETE_USER, { body: { email: user.email } });
-    USERS.splice(idx, 1); renderManageTable(); showToast(`🗑️ Removed ${user.name}`);
+    showToast(`🗑️ Removed ${user.name}`); await loadUsers();
   } catch (err) { stopSpin(); showToast('❌ ' + err.message); }
 }
 
@@ -1155,10 +1158,10 @@ async function confirmAddUser() {
     if (newClassName) payload.newClassName = newClassName;
     await apiCall(APP_CONFIG.LAMBDA_URLS.ADD_USER, { body: payload });
     USERS.push({ name, email, role, class: selectedClass });
-    renderManageTable();
     closeAddUserModal();
     buildClassDropdown();
     showToast(newClassName ? `✅ Added ${name} + new class "${newClassName}"` : `✅ Added ${name} as ${role}`);
+    await loadUsers();
   } catch (err) { showToast('❌ ' + err.message); }
   finally { stopSpin(); }
 }
