@@ -1455,7 +1455,7 @@
     }
 
     async function exportExcel() {
-        showToast('⏳ Loading all attendance data…');
+        showToastPersistent('⏳ Fetching attendance data…');
         let students, byDate;
         try {
             ({students, byDate} = await fetchAllDaysForExport());
@@ -1465,6 +1465,7 @@
             return;
         }
         try {
+            showToastPersistent('📊 Building Excel file…');
             const {headers, rows} = buildExportRows(students, byDate);
             const teacherLine = CLASS.teacher_name ? `Teacher(s): ${CLASS.teacher_name}` : '';
             const titleRow = [`${CLASS.name}${teacherLine ? '  |  ' + teacherLine : ''}`];
@@ -1474,7 +1475,7 @@
             XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
             XLSX.writeFile(wb, `attendance_${activeClass || 'class'}.xlsx`);
             closeDrawer();
-            showToast('✅ Excel file downloaded');
+            showToast('✅ Excel downloaded!');
         } catch (e) {
             showToast('❌ Export failed');
             console.error(e);
@@ -1482,7 +1483,7 @@
     }
 
     async function exportPDF() {
-        showToast('⏳ Loading all attendance data…');
+        showToastPersistent('⏳ Fetching attendance data…');
         let students, byDate;
         try {
             ({students, byDate} = await fetchAllDaysForExport());
@@ -1492,6 +1493,7 @@
             return;
         }
         try {
+            showToastPersistent('📄 Generating PDF…');
             const {jsPDF} = window.jspdf;
             const doc = new jsPDF({orientation: 'landscape', unit: 'mm', format: 'a4'});
             const {headers, rows} = buildPdfRows(students, byDate);
@@ -1530,7 +1532,7 @@
             });
             doc.save(`attendance_${activeClass || 'class'}.pdf`);
             closeDrawer();
-            showToast('✅ PDF file downloaded');
+            showToast('✅ PDF downloaded!');
         } catch (e) {
             showToast('❌ Export failed');
             console.error(e);

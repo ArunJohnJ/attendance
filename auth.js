@@ -121,7 +121,24 @@ function requireRole(allowedRoles, loginPage) {
 function showToast(msg, duration = 3000) {
   const t = document.getElementById('toast');
   if (!t) return;
+  clearTimeout(t._hideTimer);
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), duration);
+  t._hideTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+/** Shows a toast that stays until showToast() or hideToast() is called. */
+function showToastPersistent(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  clearTimeout(t._hideTimer);
+  t.textContent = msg;
+  t.classList.add('show');
+}
+
+function hideToast() {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  clearTimeout(t._hideTimer);
+  t.classList.remove('show');
 }
