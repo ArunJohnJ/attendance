@@ -3,7 +3,7 @@
 //
 // When auth=true (default):
 //   • Authorization: Bearer <token>  header added from localStorage
-//   • caller's email injected into every authenticated request body as { email }
+//   • caller's email injected into every authenticated request body as { invokedBy }
 //     — even when no body was originally passed (e.g. GET-style calls) —
 //     so the backend audit log always captures who made the call
 //   Pass auth:false for public/unauthenticated endpoints (e.g. LOGIN, SUMMARY)
@@ -50,14 +50,14 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
   }
 
   // Inject caller email into body for every authenticated request.
-  // Even if no body was provided, create one with just { email } so the
+  // Even if no body was provided, create one with just { invokedBy } so the
   // audit log in BaseHandler always captures the caller.
-  // Exception: if body is an array, skip email injection (can't spread into array).
+  // Exception: if body is an array, skip injection (can't spread into array).
   let finalBody = body;
   if (auth) {
     const callerEmail = getEmailFromToken(); // from auth.js
     if (callerEmail && !Array.isArray(body)) {
-      finalBody = { ...(body ?? {}), email: callerEmail };
+      finalBody = { ...(body ?? {}), invokedBy: callerEmail };
     }
   }
 

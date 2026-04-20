@@ -888,73 +888,109 @@ function renderAllDatesReport(classes) {
 }
 
 // ── Export helpers ────────────────────────────────
-function getExportRows() {
-  // Collect rows from whatever is currently rendered in the report
-  const rows = [];
-  if (viewMode === 'single') {
-    const date = dateKey(DAYS[activeDay]);
-    document.querySelectorAll('#report-output .class-section-wrap').forEach(wrap => {
-      const className = wrap.querySelector('.class-section-name')?.textContent || '';
-      const teacher   = wrap.querySelector('.class-section-teacher')?.textContent.replace('👤 ', '') || '';
-      wrap.querySelectorAll('.att-table tbody tr').forEach(tr => {
-        const tds = tr.querySelectorAll('td');
-        rows.push({
-          Class: className,
-          Teacher: teacher,
-          Student: tds[1]?.textContent || '',
-          Date: date,
-          Status: tds[2]?.dataset.val === 'true' ? 'Present' : tds[2]?.dataset.val === 'false' ? 'Absent' : ''
-        });
+/**
+ * Reads the currently rendered report DOM and returns an array of class objects:
+ * { className, teacher, students: [{ name, days: ['P'|'A'|''], total }] }
+ * Works for both single-date and all-dates view modes.
+ */
+function getExportData() {
+  const exportClasses = [];
+  document.querySelectorAll('#report-output .class-section-wrap').forEach(wrap => {
+    const className = wrap.querySelector('.class-section-name')?.textContent.trim() || '';
+    const teacher   = (wrap.querySelector('.class-section-teacher')?.textContent || '').replace('👤', '').trim();
+    const ths       = [...wrap.querySelectorAll('.att-table thead th')].slice(2); // skip # and Student
+    const dateHeaders = ths.map(th => th.textContent.trim()).filter(h => h !== 'Total');
+    const students = [];
+    wrap.querySelectorAll('.att-table tbody tr').forEach(tr => {
+      const tds = [...tr.querySelectorAll('td')];
+      const name = tds[1]?.textContent.trim() || '';
+      const dayCells = tds.slice(2, tds.length - 1).length > 0
+        ? tds.slice(2, tds.length - 1)   // all-dates: skip last "Total" col
+        : tds.slice(2);                  // single-date: only one date col
+      const days = dayCells.map(td => {
+        const v = td.dataset.val;
+        return v === 'true' ? 'P' : v === 'false' ? 'A' : '';
       });
+      const total = days.filter(v => v === 'P').length;
+      students.push({ name, days, total });
     });
-  } else {
-    document.querySelectorAll('#report-output .class-section-wrap').forEach(wrap => {
-      const className = wrap.querySelector('.class-section-name')?.textContent || '';
-      const teacher   = wrap.querySelector('.class-section-teacher')?.textContent.replace('👤 ', '') || '';
-      const ths = [...wrap.querySelectorAll('.att-table thead th')].slice(2);
-      wrap.querySelectorAll('.att-table tbody tr').forEach(tr => {
-        const tds = [...tr.querySelectorAll('td')];
-        const name = tds[1]?.textContent || '';
-        tds.slice(2, tds.length - 1).forEach((td, i) => {
-          rows.push({
-            Class: className,
-            Teacher: teacher,
-            Student: name,
-            Date: ths[i]?.textContent || '',
-            Status: td.dataset.val === 'true' ? 'Present' : td.dataset.val === 'false' ? 'Absent' : ''
-          });
-        });
-      });
-    });
-  }
-  return rows;
+    exportClasses.push({ className, teacher, dateHeaders, students });
+  });
+  return exportClasses;
 }
 
 function exportAllExcel() {
-  const rows = getExportRows();
-  if (!rows.length) { showToast('⚠️ No data to export'); return; }
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const data = getExportData();
+  if (!data.length) { showToast('⚠️ No data to export'); return; }
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-  XLSX.writeFile(wb, 'attendance.xlsx');
+  data.forEach(cls => {
+    const teacherLine = cls.teacher ? `Teacher(s): ${cls.teacher}` : '';
+    const titleRow = [`${cls.className}${teacherLine ? '  |  ' + teacherLine : ''}`];
+    const generatedRow = [`Generated: ${new Date().toLocaleString()}`];
+    const headers = ['#', 'Student', ...cls.dateHeaders, 'Total Days Present', ''];
+    const rows = cls.students.map((s, i) => {
+      const dayVals = s.days.map(d => d === 'P' ? '✅' : d === 'A' ? '❌' : '');
+      return [i + 1, s.name, ...dayVals, s.total, ''];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([titleRow, generatedRow, [], headers, ...rows]);
+    ws['!cols'] = [{ wch: 5 }, { wch: 22 }, ...cls.dateHeaders.map(() => ({ wch: 7 })), { wch: 18 }, { wch: 6 }];
+    // Safe sheet name: max 31 chars, no special chars
+    const sheetName = cls.className.replace(/[:\\\/?*\[\]]/g, '').slice(0, 31) || 'Sheet';
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+  XLSX.writeFile(wb, 'attendance_admin.xlsx');
   showToast('✅ Excel downloaded');
 }
 
 function exportAllPDF() {
-  const rows = getExportRows();
-  if (!rows.length) { showToast('⚠️ No data to export'); return; }
+  const data = getExportData();
+  if (!data.length) { showToast('⚠️ No data to export'); return; }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'landscape' });
-  doc.setFontSize(13);
-  doc.text('VBS 2026 — Attendance Report', 14, 15);
-  doc.autoTable({
-    startY: 22,
-    head: [['Class', 'Teacher', 'Student', 'Date', 'Status']],
-    body: rows.map(r => [r.Class, r.Teacher, r.Student, r.Date, r.Status]),
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [108, 99, 255] }
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  let firstPage = true;
+  data.forEach(cls => {
+    if (!firstPage) doc.addPage();
+    firstPage = false;
+
+    const headers = ['#', 'Student', ...cls.dateHeaders, 'Total'];
+    const rows = cls.students.map((s, i) => [i + 1, s.name, ...s.days, s.total]);
+
+    doc.setFontSize(14);
+    doc.setTextColor(30);
+    doc.text(`Attendance Report — ${cls.className}`, 14, 15);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    let y = 21;
+    if (cls.teacher) { doc.text(`Teacher(s): ${cls.teacher}`, 14, y); y += 5; }
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, y); y += 5;
+
+    doc.autoTable({
+      head: [headers],
+      body: rows,
+      startY: y + 1,
+      styles: { fontSize: 8, cellPadding: 2, halign: 'center' },
+      headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 8, textColor: [150, 150, 150] },
+        1: { cellWidth: 36, halign: 'left' },
+        [headers.length - 1]: { cellWidth: 14, fontStyle: 'bold', fillColor: [238, 240, 245] }
+      },
+      didParseCell: (cellData) => {
+        if (cellData.section === 'body' && cellData.column.index > 1 && cellData.column.index < headers.length - 1) {
+          if (cellData.cell.raw === 'P') {
+            cellData.cell.styles.fillColor = [220, 252, 231];
+            cellData.cell.styles.textColor = [21, 128, 61];
+            cellData.cell.styles.fontStyle = 'bold';
+          } else if (cellData.cell.raw === 'A') {
+            cellData.cell.styles.fillColor = [254, 226, 226];
+            cellData.cell.styles.textColor = [185, 28, 28];
+            cellData.cell.styles.fontStyle = 'bold';
+          }
+        }
+      }
+    });
   });
-  doc.save('attendance.pdf');
+  doc.save('attendance_admin.pdf');
   showToast('✅ PDF downloaded');
 }
 

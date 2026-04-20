@@ -304,10 +304,11 @@ async function loadSummary() {
   document.getElementById('grand-total').textContent = '—';
 
   try {
-    const data = await apiCall(APP_CONFIG.LAMBDA_URLS.SUMMARY, { body: { date: key }, auth: false });
-    // data: { grandTotal: number, response: [{ classId, className, teacher, presentCount }] }
-    const classes     = data.classes || [];
-    const grandTotal  = data.grandTotal ?? classes.reduce((s, c) => s + (c.presentCount || 0), 0);
+    const raw     = await apiCall(APP_CONFIG.LAMBDA_URLS.SUMMARY, { body: { date: key }, auth: false });
+    // Lambda wraps the payload: { statusCode, headers, body: "<json string>" }
+    const data    = typeof raw.body === 'string' ? JSON.parse(raw.body) : (raw.body ?? raw);
+    const classes = data.response || [];
+    const grandTotal = data.grandTotal ?? classes.reduce((s, c) => s + (Number(c.presentCount) || 0), 0);
 
     tbody.innerHTML = '';
     if (classes.length === 0) {
@@ -317,7 +318,7 @@ async function loadSummary() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>
-            <div class="class-name">${cls.className || cls.classId}</div>
+            <div class="class-name">${cls.className || cls.class || cls.classId}</div>
             ${cls.teacher ? `<div class="class-teacher">👤 ${cls.teacher}</div>` : ''}
           </td>
           <td><span class="count-badge">${cls.presentCount ?? '—'}</span></td>`;
