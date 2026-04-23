@@ -1650,7 +1650,6 @@
 
     // ── Tab switching ─────────────────────────────────
     let _activeTab = 'mark';
-    let _allDayLoaded = false;
 
     function switchTab(tab) {
         _activeTab = tab;
@@ -1660,7 +1659,7 @@
         document.getElementById('tab-panel-allday').classList.toggle('active', tab === 'allday');
         // Show/hide submit bar only on mark tab
         document.querySelector('.submit-bar').style.display = tab === 'mark' ? '' : 'none';
-        if (tab === 'allday' && !_allDayLoaded) {
+        if (tab === 'allday') {
             loadAllDayAttendance();
         }
     }
@@ -1670,7 +1669,6 @@
         container.innerHTML = '<div class="allday-loading">⏳ Loading all attendance data…</div>';
         try {
             const {students, byDate} = await fetchAllDaysForExport();
-            _allDayLoaded = true;
             renderAllDayTable(students, byDate);
         } catch (err) {
             container.innerHTML = `<div class="allday-loading" style="color:var(--red)">❌ ${err.message}</div>`;

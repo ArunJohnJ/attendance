@@ -280,8 +280,8 @@ function classGroupRank(classId) {
 
 function sortClasses(list) {
   return [...list].sort((a, b) => {
-    const idA = (a.id || a.classId || a || '').toString().toUpperCase();
-    const idB = (b.id || b.classId || b || '').toString().toUpperCase();
+    const idA = (a['class'] || '').toString().toUpperCase();
+    const idB = (b['class'] || '').toString().toUpperCase();
     const rankDiff = classGroupRank(idA) - classGroupRank(idB);
     if (rankDiff !== 0) return rankDiff;
     return idA.localeCompare(idB);
@@ -337,7 +337,7 @@ async function loadSummary() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>
-            <div class="class-name">${cls.className || cls.class || cls.classId}</div>
+            <div class="class-name">${cls['class']}</div>
             ${cls.teacher ? `<div class="class-teacher">👤 ${cls.teacher}</div>` : ''}
           </td>
           <td><span class="count-badge">${cls.presentCount ?? '—'}</span></td>`;
