@@ -894,13 +894,24 @@
         }
         .allday-table td:first-child,
         .allday-table th:first-child {
-            text-align: left;
+            width: 42px;
+            min-width: 42px;
+            text-align: center;
             position: sticky;
             left: 0;
             background: var(--surface);
+            z-index: 3;
+        }
+        .allday-table td:nth-child(2),
+        .allday-table th:nth-child(2) {
+            text-align: left;
+            position: sticky;
+            left: 42px;
+            background: var(--surface);
             z-index: 2;
         }
-        .allday-table th:first-child { background: var(--surface-2); z-index: 3; }
+        .allday-table th:first-child,
+        .allday-table th:nth-child(2) { background: var(--surface-2); }
         .allday-table tr:last-child td { border-bottom: none; }
         .allday-table .cell-p { color: var(--green); font-weight: 700; }
         .allday-table .cell-a { color: var(--red); font-weight: 700; }
@@ -1691,13 +1702,13 @@
                 if (v === false) return `<td class="cell-a">A</td>`;
                 return `<td class="cell-na">-</td>`;
             }).join('');
-            return `<tr><td>${escHtml(name)}</td>${cells}<td class="allday-total">${totalPresent}/${DAYS.length}</td></tr>`;
+            return `<tr><td>${idx + 1}</td><td>${escHtml(name)}</td>${cells}<td class="allday-total">${totalPresent}/${DAYS.length}</td></tr>`;
         }).join('');
 
         container.innerHTML = `
             <div class="allday-table-wrap">
                 <table class="allday-table">
-                    <thead><tr><th>Student</th>${dateHeaders}<th>Total</th></tr></thead>
+                    <thead><tr><th>#</th><th>Student</th>${dateHeaders}<th>Total</th></tr></thead>
                     <tbody>${bodyRows}</tbody>
                 </table>
             </div>`;
