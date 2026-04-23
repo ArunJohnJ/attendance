@@ -8,6 +8,7 @@
     <script src="auth.js"></script>
     <script src="api.js"></script>
     <script src="utils.js"></script>
+    <link rel="stylesheet" href="common.css" />
     <title>Attendance Tracker</title>
     <style>
         *, *::before, *::after {
@@ -790,29 +791,7 @@
         }
 
         /* ── Toast ──────────────────────────────────── */
-        .toast {
-            position: fixed;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-10px);
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 10px 20px;
-            border-radius: var(--radius);
-            font-size: 0.82rem;
-            font-weight: 600;
-            opacity: 0;
-            transition: all 0.25s ease;
-            pointer-events: none;
-            white-space: nowrap;
-            z-index: 400;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
+        /* toast styles moved to common.css (.toast--top) */
 
         /* ── Hidden export table ────────────────────── */
         #attendance-export-table {
@@ -1115,7 +1094,7 @@
 </div>
 
 <!-- ── Toast ─────────────────────────────────── -->
-<div class="toast" id="toast"></div>
+<div class="toast toast--top" id="toast"></div>
 
 <!-- Hidden table used for export -->
 <table id="attendance-export-table"></table>

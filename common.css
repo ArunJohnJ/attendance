@@ -1,0 +1,41 @@
+/* ── Toast (shared across all pages) ─────────────────────────────────────── */
+.toast {
+  background: #1a1a2e;
+  border: 2px solid #4f8ef7;
+  color: #f0f4ff;
+  padding: 11px 24px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(79, 142, 247, 0.35);
+  /* layout / animation — base */
+  position: fixed;
+  left: 50%;
+  opacity: 0;
+  transition: all 0.25s ease;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 400;
+}
+
+/* Pages where toast appears at the bottom (teachers.html, admin.html) */
+.toast--bottom {
+  bottom: 28px;
+  border-radius: 999px;
+  transform: translateX(-50%) translateY(10px);
+}
+.toast--bottom.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Pages where toast appears at the top (admin-dashboard.html, attendance.html) */
+.toast--top {
+  top: 70px;
+  border-radius: var(--radius, 8px);
+  transform: translateX(-50%) translateY(-10px);
+}
+.toast--top.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
