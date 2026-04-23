@@ -269,6 +269,25 @@ const TODAY_IDX    = DAYS.findIndex(d => d.getTime() === todayNorm.getTime());
 const defaultIdx   = TODAY_IDX !== -1 ? TODAY_IDX : 0;
 let activeIdx      = defaultIdx;
 
+// ── Custom class sort order (matches admin view) ─────────────────
+const CLASS_GROUP_ORDER = ['BEGINNER', 'PRIMARY', 'JUNIOR', 'INTER', 'SENIOR'];
+
+function classGroupRank(classId) {
+  const upper = (classId || '').toUpperCase();
+  const idx = CLASS_GROUP_ORDER.findIndex(g => upper.startsWith(g));
+  return idx === -1 ? CLASS_GROUP_ORDER.length : idx;
+}
+
+function sortClasses(list) {
+  return [...list].sort((a, b) => {
+    const idA = (a.id || a.classId || a || '').toString().toUpperCase();
+    const idB = (b.id || b.classId || b || '').toString().toUpperCase();
+    const rankDiff = classGroupRank(idA) - classGroupRank(idB);
+    if (rankDiff !== 0) return rankDiff;
+    return idA.localeCompare(idB);
+  });
+}
+
 // ── Date strip ─────────────────────────────────────────────────────
 function buildDateStrip() {
   const strip = document.getElementById('date-strip');
@@ -307,7 +326,7 @@ async function loadSummary() {
     const raw     = await apiCall(APP_CONFIG.LAMBDA_URLS.SUMMARY, { body: { date: key }, auth: false });
     // Lambda wraps the payload: { statusCode, headers, body: "<json string>" }
     const data    = typeof raw.body === 'string' ? JSON.parse(raw.body) : (raw.body ?? raw);
-    const classes = data.response || [];
+    const classes = sortClasses(data.response || []);
     const grandTotal = data.grandTotal ?? classes.reduce((s, c) => s + (Number(c.presentCount) || 0), 0);
 
     tbody.innerHTML = '';

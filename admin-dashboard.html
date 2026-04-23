@@ -1208,7 +1208,7 @@ async function saveMappingEdit() {
   const user     = USERS[_editingUserIdx];
   const newName  = document.getElementById('edit-teacher-name').value.trim();
   const newRole  = document.getElementById('edit-user-role').value;
-  const newClass = newRole === 'TEACHER' ? (document.getElementById('edit-class-select').value || null) : null;
+  const newClass = newRole === 'TEACHER' ? (document.getElementById('edit-class-select').value || null) : '';
   if (!newName) { showToast('⚠️ Name required'); return; }
   const btn = document.querySelector('#edit-mapping-modal .btn-primary');
   const stopSpin = btnSpinner(btn);
@@ -1269,7 +1269,7 @@ async function confirmAddUser() {
   const name  = document.getElementById('add-user-name').value.trim();
   const email = document.getElementById('add-user-email').value.trim();
   const role  = document.getElementById('add-user-role').value;
-  let selectedClass = role === 'TEACHER' ? (document.getElementById('add-user-class').value || null) : null;
+  let selectedClass = role === 'TEACHER' ? (document.getElementById('add-user-class').value || null) : '';
   let newClassName = '';
 
   if (!name)  { showToast('⚠️ Name required'); return; }

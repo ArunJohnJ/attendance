@@ -831,6 +831,86 @@
             background: var(--border);
             border-radius: 99px;
         }
+
+        /* ── Tabs ───────────────────────────────────── */
+        .tab-strip {
+            display: flex;
+            gap: 0;
+            margin: 0 20px;
+            border-bottom: 2px solid var(--border);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 0;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        .tab-btn:hover:not(.active) {
+            color: var(--text-dim);
+        }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── All-Day Table ──────────────────────────── */
+        .allday-section { padding: 14px 20px; }
+        .allday-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        .allday-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+        .allday-table th, .allday-table td {
+            padding: 8px 10px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .allday-table th {
+            background: var(--surface-2);
+            color: var(--text-dim);
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .allday-table td:first-child,
+        .allday-table th:first-child {
+            text-align: left;
+            position: sticky;
+            left: 0;
+            background: var(--surface);
+            z-index: 2;
+        }
+        .allday-table th:first-child { background: var(--surface-2); z-index: 3; }
+        .allday-table tr:last-child td { border-bottom: none; }
+        .allday-table .cell-p { color: var(--green); font-weight: 700; }
+        .allday-table .cell-a { color: var(--red); font-weight: 700; }
+        .allday-table .cell-na { color: var(--muted); }
+        .allday-total { font-weight: 700; color: var(--accent); }
+        .allday-loading {
+            padding: 30px;
+            text-align: center;
+            color: var(--muted);
+        }
     </style>
 </head>
 <body>
@@ -900,38 +980,57 @@
         </button>
     </div>
 
-    <!-- ── Date Strip ────────────────────────────── -->
-    <div class="date-strip-section">
-        <div class="section-label">Apr 25 – May 3</div>
-        <div class="date-strip" id="date-strip"></div>
+    <!-- ── Tabs ────────────────────────────────────── -->
+    <div class="tab-strip">
+        <button class="tab-btn active" id="tab-btn-mark" onclick="switchTab('mark')">📝 Mark Attendance</button>
+        <button class="tab-btn" id="tab-btn-allday" onclick="switchTab('allday')">📊 All Day Attendance</button>
     </div>
 
-    <!-- ── Summary Bar ───────────────────────────── -->
-    <div class="summary-bar">
-        <div class="summary-stat present"><span class="num" id="present-count">0</span><span class="lbl">Present</span>
+    <!-- ── Tab: Mark Attendance (default) ────────── -->
+    <div class="tab-panel active" id="tab-panel-mark">
+        <!-- ── Date Strip ────────────────────────────── -->
+        <div class="date-strip-section">
+            <div class="section-label">Apr 25 – May 3</div>
+            <div class="date-strip" id="date-strip"></div>
         </div>
-        <div class="divider-v"></div>
-        <div class="summary-stat absent"><span class="num" id="absent-count">0</span><span class="lbl">Absent</span>
+
+        <!-- ── Summary Bar ───────────────────────────── -->
+        <div class="summary-bar">
+            <div class="summary-stat present"><span class="num" id="present-count">0</span><span class="lbl">Present</span>
+            </div>
+            <div class="divider-v"></div>
+            <div class="summary-stat absent"><span class="num" id="absent-count">0</span><span class="lbl">Absent</span>
+            </div>
+            <div class="divider-v"></div>
+            <div class="summary-stat total"><span class="num" id="total-count">0</span><span class="lbl">Total</span></div>
         </div>
-        <div class="divider-v"></div>
-        <div class="summary-stat total"><span class="num" id="total-count">0</span><span class="lbl">Total</span></div>
+
+        <!-- ── Progress Bar ──────────────────────────── -->
+        <div class="progress-wrap">
+            <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+
+        <!-- ── Mark All ──────────────────────────────── -->
+        <div class="mark-all-row">
+            <button class="btn btn-success" onclick="markAll(true)">✅ Mark All Present</button>
+            <button class="btn btn-danger" onclick="markAll(false)">❌ Mark All Absent</button>
+        </div>
+
+        <!-- ── Student List ──────────────────────────── -->
+        <div class="students-section">
+            <div class="section-label" id="students-label">Students — May 3</div>
+            <div class="student-grid" id="student-list"></div>
+        </div>
     </div>
 
-    <!-- ── Progress Bar ──────────────────────────── -->
-    <div class="progress-wrap">
-        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-    </div>
-
-    <!-- ── Mark All ──────────────────────────────── -->
-    <div class="mark-all-row">
-        <button class="btn btn-success" onclick="markAll(true)">✅ Mark All Present</button>
-        <button class="btn btn-danger" onclick="markAll(false)">❌ Mark All Absent</button>
-    </div>
-
-    <!-- ── Student List ──────────────────────────── -->
-    <div class="students-section">
-        <div class="section-label" id="students-label">Students — May 3</div>
-        <div class="student-grid" id="student-list"></div>
+    <!-- ── Tab: All Day Attendance ───────────────── -->
+    <div class="tab-panel" id="tab-panel-allday">
+        <div class="allday-section">
+            <div class="section-label">Full Attendance Overview</div>
+            <div id="allday-content">
+                <div class="allday-loading">Select this tab to load all-day attendance data.</div>
+            </div>
+        </div>
     </div>
 
 </div><!-- /.app-shell -->
@@ -1176,7 +1275,7 @@
                 const att = (attendance[activeClass] || {})[dateKey(d)] || {};
                 const filled = !!att[name];
                 return `<div class="habit-dot ${filled ? 'filled' : ''} ${idx === activeDay ? 'today-dot' : ''}"
-                   title="${DAY_LABELS[d.getDay()]} ${d.getDate()}"
+                   title="${DAY_LABELS[d.getDay()]}"${idx === activeDay ? ` data-tooltip="Today"` : ``}
                    onclick="toggleDot('${escHtml(name)}', ${idx})"></div>`;
             }).join('');
 
@@ -1547,6 +1646,63 @@
 
     function escHtml(s) {
         return s.replace(/'/g, "&#39;").replace(/"/g, '&quot;');
+    }
+
+    // ── Tab switching ─────────────────────────────────
+    let _activeTab = 'mark';
+    let _allDayLoaded = false;
+
+    function switchTab(tab) {
+        _activeTab = tab;
+        document.getElementById('tab-btn-mark').classList.toggle('active', tab === 'mark');
+        document.getElementById('tab-btn-allday').classList.toggle('active', tab === 'allday');
+        document.getElementById('tab-panel-mark').classList.toggle('active', tab === 'mark');
+        document.getElementById('tab-panel-allday').classList.toggle('active', tab === 'allday');
+        // Show/hide submit bar only on mark tab
+        document.querySelector('.submit-bar').style.display = tab === 'mark' ? '' : 'none';
+        if (tab === 'allday' && !_allDayLoaded) {
+            loadAllDayAttendance();
+        }
+    }
+
+    async function loadAllDayAttendance() {
+        const container = document.getElementById('allday-content');
+        container.innerHTML = '<div class="allday-loading">⏳ Loading all attendance data…</div>';
+        try {
+            const {students, byDate} = await fetchAllDaysForExport();
+            _allDayLoaded = true;
+            renderAllDayTable(students, byDate);
+        } catch (err) {
+            container.innerHTML = `<div class="allday-loading" style="color:var(--red)">❌ ${err.message}</div>`;
+        }
+    }
+
+    function renderAllDayTable(students, byDate) {
+        const container = document.getElementById('allday-content');
+        if (!students.length) {
+            container.innerHTML = '<div class="allday-loading">No attendance data found.</div>';
+            return;
+        }
+        const dateHeaders = DAYS.map(d => `<th>${MONTH_ABBR[d.getMonth()]} ${d.getDate()}</th>`).join('');
+        const bodyRows = students.map(({name}, idx) => {
+            let totalPresent = 0;
+            const cells = DAYS.map(d => {
+                const att = byDate[dateKey(d)] || {};
+                const v = att[name];
+                if (v === true) { totalPresent++; return `<td class="cell-p">P</td>`; }
+                if (v === false) return `<td class="cell-a">A</td>`;
+                return `<td class="cell-na">-</td>`;
+            }).join('');
+            return `<tr><td>${escHtml(name)}</td>${cells}<td class="allday-total">${totalPresent}/${DAYS.length}</td></tr>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="allday-table-wrap">
+                <table class="allday-table">
+                    <thead><tr><th>Student</th>${dateHeaders}<th>Total</th></tr></thead>
+                    <tbody>${bodyRows}</tbody>
+                </table>
+            </div>`;
     }
 
     init();
