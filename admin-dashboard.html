@@ -1154,7 +1154,7 @@ async function populateClassDropdown(selectId, selectedClassId, includeNewClass)
   try {
     const data = await apiCall(APP_CONFIG.LAMBDA_URLS.DISTINCT_CLASSES);
     const raw = Array.isArray(data) ? data : (data.response || []);
-    const list = raw.map(cls => typeof cls === 'string' ? { id: cls, name: cls } : cls);
+    const list = sortClasses(raw.map(cls => typeof cls === 'string' ? { id: cls, name: cls } : cls));
     sel.innerHTML = '<option value="">— None (unassigned) —</option>';
     list.forEach(cls => {
       const opt = document.createElement('option');
