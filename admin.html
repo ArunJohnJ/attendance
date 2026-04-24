@@ -178,47 +178,49 @@
     <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.7 2.2-6.2 0-11.5-4.2-13.4-9.9l-7.8 6C6.6 42.6 14.6 48 24 48z"/>
   </svg> Sign in with Google`;
 
+  // Initialize Google OAuth client once at page level (not per-click)
+  // to avoid iOS Safari/WebKit issues with repeated popup client creation
+  const _googleClient = google.accounts.oauth2.initCodeClient({
+    client_id: APP_CONFIG.GOOGLE_CLIENT_NAME,
+    scope: 'openid email',
+    ux_mode: 'popup',
+    callback: (response) => {
+      if (!response.code) {
+        setError('Google sign-in was cancelled or failed.');
+        resetBtn(); return;
+      }
+      showToast('🔄 Verifying…');
+      const btn = document.getElementById('google-btn');
+      const stopSpin = btnSpinner(btn);
+      apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code: response.code }, auth: false })
+      .then(data => {
+        const role = data.role;
+        if (role === 'ADMIN' || role === 'SUPER-ADMIN') {
+          saveSession(data.token);
+          sessionStorage.setItem('adminAuthenticated', '1');
+          sessionStorage.setItem('adminRole', role);
+          sessionStorage.setItem('adminEmail', data.email || '');
+          showToast('✅ Logged in! Entering Dashboard…');
+          setTimeout(() => location.href = 'admin-dashboard.html', 600);
+        } else {
+          setError('Access denied. This account is not authorized for admin access.');
+          resetBtn();
+        }
+      })
+      .catch(err => {
+        stopSpin();
+        setError(err.message || 'Login failed. Please try again.');
+        resetBtn();
+      });
+    }
+  });
+
   function login() {
     const btn = document.getElementById('google-btn');
     btn.disabled = true;
     btn.textContent = 'Signing in…';
     setError('');
-
-    const client = google.accounts.oauth2.initCodeClient({
-      client_id: APP_CONFIG.GOOGLE_CLIENT_NAME,
-      scope: 'openid email',
-      ux_mode: 'popup',
-      callback: (response) => {
-        if (!response.code) {
-          setError('Google sign-in was cancelled or failed.');
-          resetBtn(); return;
-        }
-        showToast('🔄 Verifying…');
-        const stopSpin = btnSpinner(btn);
-        apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code: response.code }, auth: false })
-        .then(data => {
-          const role = data.role;
-          if (role === 'ADMIN' || role === 'SUPER-ADMIN') {
-            saveSession(data.token);
-            sessionStorage.setItem('adminAuthenticated', '1');
-            sessionStorage.setItem('adminRole', role);
-            sessionStorage.setItem('adminEmail', data.email || '');
-            showToast('✅ Logged in! Entering Dashboard…');
-            setTimeout(() => location.href = 'admin-dashboard.html', 600);
-          } else {
-            setError('Access denied. This account is not authorized for admin access.');
-            resetBtn();
-          }
-        })
-        .catch(err => {
-          stopSpin();
-          setError(err.message || 'Login failed. Please try again.');
-          resetBtn();
-        });
-      }
-    });
-
-    client.requestCode();
+    _googleClient.requestCode();
   }
 
   function resetBtn() {
