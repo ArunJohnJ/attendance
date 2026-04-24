@@ -206,7 +206,7 @@ function handleOAuthRedirect({ onSuccess, errorMsg }) {
     showToast('🔄 Verifying…');
     const stopSpin = btnSpinner(btn);
 
-    apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code }, auth: false })
+    apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code, redirectUri: window.location.origin + window.location.pathname }, auth: false })
       .then(data => onSuccess(data))
       .catch(err => {
         stopSpin();
