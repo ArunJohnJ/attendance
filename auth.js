@@ -182,38 +182,71 @@ function showAuthErrorToast(roleLabel) {
     tokenExpired: '⏱️ Session expired — please log in again',
     notLoggedIn:  '🔒 Please log in to continue',
   };
-  window.addEventListener('DOMContentLoaded', () =>
-    showToast(msgs[err] || '🔒 Please log in to continue', 4000));
+  const show = () => showToast(msgs[err] || '🔒 Please log in to continue', 4000);
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', show);
+  } else {
+    show();
+  }
 }
 
 /**
  * Handle the OAuth redirect: if ?code= is in the URL, exchange it for a token.
+ *
+ * iOS Safari (ITP) blocks fetch() calls made immediately after a cross-origin
+ * redirect (e.g. Google → your page). The fix is a two-phase approach:
+ *   Phase 1 — when ?code= is detected: stash code + redirectUri in sessionStorage,
+ *              then do a clean same-origin reload (removes Google from the navigation chain).
+ *   Phase 2 — on the reloaded page: read from sessionStorage and call the Lambda.
+ *              This fetch now originates from a same-origin navigation, so ITP allows it.
+ *
  * @param {object}   opts
  * @param {function} opts.onSuccess - called with the API response data
- * @param {string}   opts.errorMsg  - message shown when role doesn't match
  */
-function handleOAuthRedirect({ onSuccess, errorMsg }) {
+function handleOAuthRedirect({ onSuccess }) {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
-  if (!code) return;
 
-  window.history.replaceState({}, '', window.location.pathname);
+  // ── Phase 1: stash code and reload cleanly ────────────────────────────────
+  if (code) {
+    const redirectUri = window.location.origin + window.location.pathname;
+    sessionStorage.setItem('_oauthCode', code);
+    sessionStorage.setItem('_oauthRedirectUri', redirectUri);
+    // Replace URL (remove ?code=…) then reload so the fetch is same-origin
+    window.location.replace(window.location.pathname);
+    return;
+  }
 
-  window.addEventListener('DOMContentLoaded', () => {
+  // ── Phase 2: complete login after clean reload ────────────────────────────
+  const storedCode = sessionStorage.getItem('_oauthCode');
+  const storedRedirectUri = sessionStorage.getItem('_oauthRedirectUri');
+  if (!storedCode) return;
+
+  sessionStorage.removeItem('_oauthCode');
+  sessionStorage.removeItem('_oauthRedirectUri');
+
+  function _doLogin() {
     const btn = document.getElementById('google-btn');
     btn.disabled = true;
     btn.textContent = 'Signing in…';
     showToast('🔄 Verifying…');
     const stopSpin = btnSpinner(btn);
 
-    apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code, redirectUri: window.location.origin + window.location.pathname }, auth: false })
+    apiCall(APP_CONFIG.LAMBDA_URLS.LOGIN, { body: { code: storedCode, redirectUri: storedRedirectUri }, auth: false })
       .then(data => onSuccess(data))
       .catch(err => {
         stopSpin();
         setError(err.message || 'Login failed. Please try again.');
         resetBtn();
       });
-  });
+  }
+
+  // Run immediately if DOM is ready, otherwise wait for it
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', _doLogin);
+  } else {
+    _doLogin();
+  }
 }
 
 // ── Google OAuth client (redirect mode — works on iOS Safari) ────────────────
