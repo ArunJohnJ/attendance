@@ -242,6 +242,7 @@
       <thead>
         <tr>
           <th>Class</th>
+          <th style="text-align:right">Teachers</th>
           <th style="text-align:right">Present</th>
         </tr>
       </thead>
@@ -319,7 +320,7 @@ async function loadSummary() {
     activeIdx === TODAY_IDX ? '📅 Today\'s attendance count per class' : 'Attendance count per class';
 
   const tbody = document.getElementById('stats-body');
-  tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--muted)"><div class="fetch-spinner show" style="justify-content:center"><div class="spinner-ring"></div> Loading…</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--muted)"><div class="fetch-spinner show" style="justify-content:center"><div class="spinner-ring"></div> Loading…</div></td></tr>';
   document.getElementById('grand-total').textContent = '—';
 
   try {
@@ -331,7 +332,7 @@ async function loadSummary() {
 
     tbody.innerHTML = '';
     if (classes.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="2" class="empty">No data for this date</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">No data for this date</td></tr>';
     } else {
       classes.forEach(cls => {
         const tr = document.createElement('tr');
@@ -340,13 +341,14 @@ async function loadSummary() {
             <div class="class-name">${cls['class']}</div>
             ${cls.teacher ? `<div class="class-teacher">👤 ${cls.teacher}</div>` : ''}
           </td>
+          <td><span class="count-badge" style="background:var(--surface-2);color:var(--text-dim)">${cls.teachersCount ?? '—'}</span></td>
           <td><span class="count-badge">${cls.presentCount ?? '—'}</span></td>`;
         tbody.appendChild(tr);
       });
     }
     document.getElementById('grand-total').textContent = grandTotal;
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--red)">${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--red)">${err.message}</td></tr>`;
     showToast('❌ Failed to load summary');
   }
 }
