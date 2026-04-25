@@ -29,6 +29,20 @@ function _redirectToLogin(reason) {
   throw new Error('Session expired. Please log in again.');
 }
 
+// iOS Safari is stricter about mixed content and preflight failures.
+// Normalize obvious URL issues before making the request.
+function _normalizeApiUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return rawUrl;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return trimmed;
+
+  // Prevent https frontend -> http API mixed-content failures.
+  if (location.protocol === 'https:' && trimmed.startsWith('http://')) {
+    return 'https://' + trimmed.slice('http://'.length);
+  }
+  return trimmed;
+}
+
 async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
   // ── Proactive token-expiry check ─────────────────────────────────────────
   // Check BEFORE the network call so the redirect is immediate and never
@@ -38,15 +52,9 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
   }
 
   // Build URL with optional query params
+  url = _normalizeApiUrl(url);
   if (queryParams && Object.keys(queryParams).length > 0) {
     url = `${url}?${new URLSearchParams(queryParams)}`;
-  }
-
-  // Build headers
-  const headers = { 'Content-Type': 'application/json' };
-  if (auth) {
-    const token = getToken(); // from auth.js
-    if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
   // Inject caller email into body for every authenticated request.
@@ -64,12 +72,32 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
   // Resolve method
   const resolvedMethod = method ?? (finalBody !== undefined ? 'POST' : 'GET');
 
+  // Build headers. Avoid setting JSON Content-Type on body-less requests,
+  // which forces extra preflight checks (a common Safari pain point).
+  const headers = {};
+  if (finalBody !== undefined) headers['Content-Type'] = 'application/json';
+  if (auth) {
+    const token = getToken(); // from auth.js
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+
   // Execute
-  const response = await fetch(url, {
-    method: resolvedMethod,
-    headers,
-    ...(finalBody !== undefined ? { body: JSON.stringify(finalBody) } : {}),
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: resolvedMethod,
+      mode: 'cors',
+      cache: 'no-store',
+      headers,
+      ...(finalBody !== undefined ? { body: JSON.stringify(finalBody) } : {}),
+    });
+  } catch (err) {
+    const isNetworkError = err instanceof TypeError;
+    const networkMsg = isNetworkError
+      ? 'Network/CORS error while reaching API. Verify HTTPS API URLs and Lambda CORS (GET/POST/OPTIONS + Authorization/Content-Type).'
+      : (err && err.message) || 'Request failed before reaching server.';
+    throw new Error(networkMsg);
+  }
 
   // 401 — expired / invalid token
   if (response.status === 401) {
