@@ -1162,7 +1162,7 @@
             const records = data.response || [];
 
             // Rebuild student list from this date's response
-            CLASS.students = records.map(r => ({id: r.studentId, name: r.name}));
+            CLASS.students = records.map(r => ({id: r.studentId, name: r.name, isTeacher: r.isTeacher || ''}));
 
             if (!attendance[activeClass]) attendance[activeClass] = {};
             attendance[activeClass][key] = {};
@@ -1359,7 +1359,8 @@
             studentId: s.id,
             date: key,
             class: activeClass,
-            attendanceStatus: dayAtt[s.name] ? 'P' : 'A'
+            attendanceStatus: dayAtt[s.name] ? 'P' : 'A',
+            isTeacher: s.isTeacher || ''
         }));
 
         const btn = document.querySelector('.submit-btn');
