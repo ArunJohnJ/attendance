@@ -73,9 +73,11 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
   const resolvedMethod = method ?? (finalBody !== undefined ? 'POST' : 'GET');
 
   // Build headers. Avoid setting JSON Content-Type on body-less requests,
-  // which forces extra preflight checks (a common Safari pain point).
+  // which can cause issues with preflight checks on some browsers (e.g., Safari).
   const headers = {};
-  if (finalBody !== undefined) headers['Content-Type'] = 'application/json';
+  if (finalBody !== undefined && resolvedMethod !== 'GET') {
+    headers['Content-Type'] = 'application/json';
+  }
   if (auth) {
     const token = getToken(); // from auth.js
     if (token) headers['Authorization'] = `Bearer ${token}`;
