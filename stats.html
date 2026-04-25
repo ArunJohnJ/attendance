@@ -142,14 +142,14 @@
       text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
       text-align: left;
     }
-    th:last-child { text-align: right; }
+    th:not(:first-child) { text-align: center; }
 
     tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--surface-2); }
 
     td { padding: 12px 14px; font-size: 0.88rem; }
-    td:last-child { text-align: right; }
+    td:not(:first-child) { text-align: center; }
 
     .class-name { font-weight: 600; }
     .class-teacher { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
@@ -242,8 +242,8 @@
       <thead>
         <tr>
           <th>Class</th>
-          <th style="text-align:right">Teachers Count</th>
-          <th style="text-align:right">Students Count</th>
+          <th>Volunteers</th>
+          <th>Students Present</th>
         </tr>
       </thead>
       <tbody id="stats-body"></tbody>
@@ -341,7 +341,7 @@ async function loadSummary() {
             <div class="class-name">${cls['class']}</div>
             ${cls.teacher ? `<div class="class-teacher">👤 ${cls.teacher}</div>` : ''}
           </td>
-          <td><span class="count-badge" style="background:var(--surface-2);color:var(--text-dim)">${cls.teachersCount ?? '—'}</span></td>
+          <td><span class="count-badge" style="background:var(--surface-2);color:var(--text-dim)">${cls.volunteersCount ?? '—'}</span></td>
           <td><span class="count-badge">${cls.presentCount ?? '—'}</span></td>`;
         tbody.appendChild(tr);
       });
