@@ -87,7 +87,7 @@ async function apiCall(url, { method, queryParams, body, auth = true } = {}) {
     response = await fetch(url, {
       method: resolvedMethod,
       mode: 'cors',
-      cache: 'no-store',
+      credentials: 'omit',
       headers,
       ...(finalBody !== undefined ? { body: JSON.stringify(finalBody) } : {}),
     });
