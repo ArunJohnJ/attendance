@@ -824,6 +824,7 @@ function setReportLoading() {
   document.getElementById('sum-present').textContent = '—';
   document.getElementById('sum-absent').textContent  = '—';
   document.getElementById('sum-total').textContent   = '—';
+  document.querySelector('.summary-row').style.display = viewMode === 'all' ? 'none' : '';
 }
 
 // ── VIEW_STUDENTS_SPECIFIC_DATE ───────────────────
@@ -904,6 +905,7 @@ function renderSpecificDateReport(classes) {
   document.getElementById('sum-present').textContent = grandTotalT > 0 ? `${grandPresentS} + ${grandPresentT}` : grandPresentS;
   document.getElementById('sum-absent').textContent  = grandTotalT > 0 ? `${grandAbsentS} + ${grandAbsentT}`   : grandAbsentS;
   document.getElementById('sum-total').textContent   = grandTotalT > 0 ? `${grandTotalS} + ${grandTotalT}`     : grandTotalS;
+  document.querySelector('.summary-row').style.display = '';
 }
 
 // ── VIEW_STUDENTS_ALL_DATES ───────────────────────
@@ -1003,9 +1005,7 @@ function renderAllDatesReport(classes) {
     output.appendChild(wrap);
   });
 
-  document.getElementById('sum-present').textContent = grandTotalT > 0 ? `${grandPresentS} + ${grandPresentT}` : grandPresentS;
-  document.getElementById('sum-absent').textContent  = grandTotalT > 0 ? `${grandAbsentS} + ${grandAbsentT}`   : grandAbsentS;
-  document.getElementById('sum-total').textContent   = grandTotalT > 0 ? `${grandTotalS} + ${grandTotalT}`     : grandTotalS;
+  document.querySelector('.summary-row').style.display = 'none';
 }
 
 // ── Export helpers ────────────────────────────────
