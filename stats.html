@@ -125,24 +125,23 @@
     .total-card-num { font-size: 2rem; font-weight: 800; color: var(--green); line-height: 1; }
     .total-card-sub { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
 
-    /* ── Breakdown cards ──────────────────────── */
+    /* ── Breakdown cards ──────────────────────────────────────────── */
     .breakdown-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
       margin-bottom: 16px;
     }
     .breakdown-card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 12px 14px;
-      display: flex; flex-direction: column; gap: 4px;
+      border-radius: var(--radius-sm); padding: 8px 10px;
+      display: flex; flex-direction: column; gap: 3px;
     }
-    .breakdown-card-label { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .breakdown-card-num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .breakdown-card-label { font-size: 0.6rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .breakdown-card-num { font-size: 1.25rem; font-weight: 800; line-height: 1; }
     .breakdown-card-num.students { color: var(--green); }
     .breakdown-card-num.teachers { color: #60a5fa; }
     .breakdown-card-num.directors { color: #f59e0b; }
     .breakdown-card-num.volunteers { color: #c084fc; }
-    .breakdown-card-sub { font-size: 0.62rem; color: var(--muted); }
-    .breakdown-card-sub { font-size: 0.62rem; color: var(--muted); }
+    .breakdown-card-sub { font-size: 0.58rem; color: var(--muted); }
 
     /* ── Table ────────────────────────────────── */
     .table-wrap {
@@ -274,7 +273,11 @@
     </div>
     <div class="breakdown-card">
       <div class="breakdown-card-label">Directors</div>
-      <div class="breakdown-card-num directors" id="total-directors">—</div>
+      <div class="breakdown-card-num directors" id="total-directors">2</div>
+    </div>
+    <div class="breakdown-card">
+      <div class="breakdown-card-label">Total</div>
+      <div class="breakdown-card-num" style="color:var(--text)" id="grand-total-mini">—</div>
     </div>
   </div>
 
@@ -415,6 +418,7 @@ async function loadSummary() {
       });
     }
     document.getElementById('grand-total').textContent = grandTotal;
+    document.getElementById('grand-total-mini').textContent = grandTotal;
     document.getElementById('total-students').textContent = totalStudents;
     document.getElementById('total-volunteers').textContent = totalVolunteers;
     document.getElementById('total-teachers').textContent = totalTeachers;

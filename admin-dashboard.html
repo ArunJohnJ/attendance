@@ -1018,24 +1018,26 @@ function getExportData() {
   const exportClasses = [];
   document.querySelectorAll('#report-output .class-section-wrap').forEach(wrap => {
     const className = wrap.querySelector('.class-section-name')?.textContent.trim() || '';
-    const teacher   = (wrap.querySelector('.class-section-teacher')?.textContent || '').replace('👤', '').trim();
-    const ths       = [...wrap.querySelectorAll('.att-table thead th')].slice(2); // skip # and Student
+    const ths       = [...wrap.querySelectorAll('.att-table thead th')].slice(2);
     const dateHeaders = ths.map(th => th.textContent.trim()).filter(h => h !== 'Total');
-    const students = [];
+    const students = [], teachers = [];
     wrap.querySelectorAll('.att-table tbody tr').forEach(tr => {
       const tds = [...tr.querySelectorAll('td')];
       const name = tds[1]?.textContent.trim() || '';
       const dayCells = tds.slice(2, tds.length - 1).length > 0
-        ? tds.slice(2, tds.length - 1)   // all-dates: skip last "Total" col
-        : tds.slice(2);                  // single-date: only one date col
+        ? tds.slice(2, tds.length - 1)
+        : tds.slice(2);
       const days = dayCells.map(td => {
         const v = td.dataset.val;
         return v === 'true' ? 'P' : v === 'false' ? 'A' : '';
       });
       const total = days.filter(v => v === 'P').length;
-      students.push({ name, days, total });
+      const isTeacher = dayCells[0]?.dataset.isteacher === '1';
+      (isTeacher ? teachers : students).push({ name, days, total });
     });
-    exportClasses.push({ className, teacher, dateHeaders, students });
+    // Derive teacher names from teacher rows
+    const teacherNames = teachers.map(t => t.name).join(', ');
+    exportClasses.push({ className, teacherNames, dateHeaders, students, teachers });
   });
   return exportClasses;
 }
@@ -1045,17 +1047,28 @@ function exportAllExcel() {
   if (!data.length) { showToast('⚠️ No data to export'); return; }
   const wb = XLSX.utils.book_new();
   data.forEach(cls => {
-    const teacherLine = cls.teacher ? `Teacher(s): ${cls.teacher}` : '';
+    const teacherLine = cls.teacherNames ? `Teacher(s): ${cls.teacherNames}` : '';
     const titleRow = [`${cls.className}${teacherLine ? '  |  ' + teacherLine : ''}`];
     const generatedRow = [`Generated: ${new Date().toLocaleString()}`];
-    const headers = ['#', 'Student', ...cls.dateHeaders, 'Total Days Present', ''];
-    const rows = cls.students.map((s, i) => {
+    const colWidths = [{ wch: 5 }, { wch: 22 }, ...cls.dateHeaders.map(() => ({ wch: 7 })), { wch: 18 }, { wch: 6 }];
+
+    const sHeaders = ['#', 'Student', ...cls.dateHeaders, 'Total Days Present', ''];
+    const sRows = cls.students.map((s, i) => {
       const dayVals = s.days.map(d => d === 'P' ? '✅' : d === 'A' ? '❌' : '-');
       return [i + 1, s.name, ...dayVals, s.total, ''];
     });
-    const ws = XLSX.utils.aoa_to_sheet([titleRow, generatedRow, [], headers, ...rows]);
-    ws['!cols'] = [{ wch: 5 }, { wch: 22 }, ...cls.dateHeaders.map(() => ({ wch: 7 })), { wch: 18 }, { wch: 6 }];
-    // Safe sheet name: max 31 chars, no special chars
+
+    const tHeaders = ['#', 'Teacher', ...cls.dateHeaders, 'Total Days Present', ''];
+    const tRows = cls.teachers.map((s, i) => {
+      const dayVals = s.days.map(d => d === 'P' ? '✅' : d === 'A' ? '❌' : '-');
+      return [i + 1, s.name, ...dayVals, s.total, ''];
+    });
+
+    const sheetData = [titleRow, generatedRow, [], sHeaders, ...sRows];
+    if (cls.teachers.length) sheetData.push([], tHeaders, ...tRows);
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols'] = colWidths;
     const sheetName = cls.className.replace(/[:\\\/?*\[\]]/g, '').slice(0, 31) || 'Sheet';
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
@@ -1069,47 +1082,53 @@ function exportAllPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   let firstPage = true;
+
+  const tableOpts = (headers, rows, startY) => ({
+    head: [headers], body: rows, startY,
+    styles: { fontSize: 8, cellPadding: 2, halign: 'center' },
+    headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 8, textColor: [150, 150, 150] },
+      1: { cellWidth: 36, halign: 'left' },
+      [headers.length - 1]: { cellWidth: 14, fontStyle: 'bold', fillColor: [238, 240, 245] }
+    },
+    didParseCell: (cellData) => {
+      if (cellData.section === 'body' && cellData.column.index > 1 && cellData.column.index < headers.length - 1) {
+        if (cellData.cell.raw === 'P') {
+          cellData.cell.styles.fillColor = [220, 252, 231];
+          cellData.cell.styles.textColor = [21, 128, 61];
+          cellData.cell.styles.fontStyle = 'bold';
+        } else if (cellData.cell.raw === 'A') {
+          cellData.cell.styles.fillColor = [254, 226, 226];
+          cellData.cell.styles.textColor = [185, 28, 28];
+          cellData.cell.styles.fontStyle = 'bold';
+        }
+      }
+    }
+  });
+
   data.forEach(cls => {
     if (!firstPage) doc.addPage();
     firstPage = false;
 
-    const headers = ['#', 'Student', ...cls.dateHeaders, 'Total'];
-    const rows = cls.students.map((s, i) => [i + 1, s.name, ...s.days.map(v => v === '' ? '-' : v), s.total]);
-
-    doc.setFontSize(14);
-    doc.setTextColor(30);
+    doc.setFontSize(14); doc.setTextColor(30);
     doc.text(`Attendance Report — ${cls.className}`, 14, 15);
-    doc.setFontSize(9);
-    doc.setTextColor(120);
+    doc.setFontSize(9); doc.setTextColor(120);
     let y = 21;
-    if (cls.teacher) { doc.text(`Teacher(s): ${cls.teacher}`, 14, y); y += 5; }
+    if (cls.teacherNames) { doc.text(`Teacher(s): ${cls.teacherNames}`, 14, y); y += 5; }
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, y); y += 5;
 
-    doc.autoTable({
-      head: [headers],
-      body: rows,
-      startY: y + 1,
-      styles: { fontSize: 8, cellPadding: 2, halign: 'center' },
-      headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 8, textColor: [150, 150, 150] },
-        1: { cellWidth: 36, halign: 'left' },
-        [headers.length - 1]: { cellWidth: 14, fontStyle: 'bold', fillColor: [238, 240, 245] }
-      },
-      didParseCell: (cellData) => {
-        if (cellData.section === 'body' && cellData.column.index > 1 && cellData.column.index < headers.length - 1) {
-          if (cellData.cell.raw === 'P') {
-            cellData.cell.styles.fillColor = [220, 252, 231];
-            cellData.cell.styles.textColor = [21, 128, 61];
-            cellData.cell.styles.fontStyle = 'bold';
-          } else if (cellData.cell.raw === 'A') {
-            cellData.cell.styles.fillColor = [254, 226, 226];
-            cellData.cell.styles.textColor = [185, 28, 28];
-            cellData.cell.styles.fontStyle = 'bold';
-          }
-        }
-      }
-    });
+    // Students table
+    const sHeaders = ['#', 'Student', ...cls.dateHeaders, 'Total'];
+    const sRows = cls.students.map((s, i) => [i + 1, s.name, ...s.days.map(v => v === '' ? '-' : v), s.total]);
+    doc.autoTable(tableOpts(sHeaders, sRows, y + 1));
+
+    // Teachers table (only if any)
+    if (cls.teachers.length) {
+      const tHeaders = ['#', 'Teacher', ...cls.dateHeaders, 'Total'];
+      const tRows = cls.teachers.map((s, i) => [i + 1, s.name, ...s.days.map(v => v === '' ? '-' : v), s.total]);
+      doc.autoTable(tableOpts(tHeaders, tRows, doc.lastAutoTable.finalY + 8));
+    }
   });
   doc.save('attendance_admin.pdf');
   showToast('✅ PDF downloaded');
