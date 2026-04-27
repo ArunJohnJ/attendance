@@ -1180,30 +1180,6 @@
         }
     }
 
-    // Called once on first load after login; subsequent visits use the cache.
-    async function loadTeacherNames() {
-        const cacheKey = 'teachers_' + CLASS.id;
-        const cached = localStorage.getItem(cacheKey);
-
-        if (cached) {
-            CLASS.teacher_name = cached;
-            document.getElementById('class-title').textContent = `📚 ${CLASS.name} - ${CLASS.teacher_name}`;
-            return;
-        }
-
-        try {
-            const data = await apiCall(APP_CONFIG.LAMBDA_URLS.GET_TEACHERS, {
-                body: {class: CLASS.id}
-            });
-            const teacherDisplay = data.response || '';
-            localStorage.setItem(cacheKey, teacherDisplay);
-            CLASS.teacher_name = teacherDisplay;
-            document.getElementById('class-title').textContent = `📚 ${CLASS.name} - ${CLASS.teacher_name}`;
-        } catch (err) {
-            console.warn('Could not load teacher names:', err.message);
-        }
-    }
-
     // ── Init ──────────────────────────────────────────
     function init() {
         // Populate class identity from the JWT — no API call needed
@@ -1214,7 +1190,6 @@
 
         buildDateStrip();
         updateDateLabel();
-        loadTeacherNames();
         loadAttendance();
     }
 
@@ -1587,20 +1562,19 @@
         }
         try {
             showToastPersistent('📊 Building Excel file…');
-            const teacherLine = CLASS.teacher_name ? `Teacher(s): ${CLASS.teacher_name}` : '';
+            const teacherNames = teachers.map(t => t.name).join(', ');
+            const teacherLine = teacherNames ? `Teacher(s): ${teacherNames}` : '';
             const titleRow = [`${CLASS.name}${teacherLine ? '  |  ' + teacherLine : ''}`];
             const colWidths = [{wch: 5}, {wch: 22}, ...DAYS.map(() => ({wch: 7})), {wch: 18}, {wch: 6}];
 
             const {headers: sHeaders, rows: sRows} = buildExportRows(students, byDate);
-            const teacherHeaderRow = ['', 'Teachers'];
             const {headers: tHeaders, rows: tRows} = buildExportRows(teachers, byDate);
-            // Replace "Student" label with "Teacher" in headers
             tHeaders[1] = 'Teacher';
 
             const ws = XLSX.utils.aoa_to_sheet([
                 titleRow, [],
                 sHeaders, ...sRows,
-                [], teacherHeaderRow, [],
+                [],
                 tHeaders, ...tRows
             ]);
             ws['!cols'] = colWidths;
@@ -1661,8 +1635,9 @@
             doc.setFontSize(9);
             doc.setTextColor(120);
             let metaY = 21;
-            if (CLASS.teacher_name) {
-                doc.text(`Teacher(s): ${CLASS.teacher_name}`, 14, metaY);
+            const teacherNames = teachers.map(t => t.name).join(', ');
+            if (teacherNames) {
+                doc.text(`Teacher(s): ${teacherNames}`, 14, metaY);
                 metaY += 5;
             }
             doc.text(`Generated: ${new Date().toLocaleString()}`, 14, metaY);
@@ -1676,10 +1651,7 @@
             if (teachers.length) {
                 const {headers: tHeaders, rows: tRows} = buildPdfRows(teachers, byDate);
                 tHeaders[1] = 'Teacher';
-                const afterStudents = doc.lastAutoTable.finalY + 8;
-                doc.setFontSize(10); doc.setTextColor(40);
-                doc.text('Teachers', 14, afterStudents - 3);
-                doc.autoTable(tableOpts(tHeaders, tRows, afterStudents));
+                doc.autoTable(tableOpts(tHeaders, tRows, doc.lastAutoTable.finalY + 8));
             }
 
             doc.save(`attendance_${activeClass || 'class'}.pdf`);
