@@ -846,6 +846,20 @@ async function loadSpecificDate() {
   }
 }
 
+// ── Sync name-column widths across two table-scroll containers ──
+function syncNameColWidth(scrollA, scrollB) {
+  const getNameCells = (scrollDiv) => [
+    ...scrollDiv.querySelectorAll('thead th:nth-child(2), tbody td:nth-child(2)')
+  ];
+  const maxW = Math.max(
+    ...getNameCells(scrollA).map(el => el.getBoundingClientRect().width),
+    ...getNameCells(scrollB).map(el => el.getBoundingClientRect().width)
+  );
+  [scrollA, scrollB].forEach(scrollDiv => {
+    getNameCells(scrollDiv).forEach(el => { el.style.minWidth = maxW + 'px'; el.style.width = maxW + 'px'; });
+  });
+}
+
 function renderSpecificDateReport(classes) {
   const output = document.getElementById('report-output');
   output.innerHTML = '';
@@ -902,11 +916,15 @@ function renderSpecificDateReport(classes) {
         <span class="class-section-badge">${badgeText}</span>
       </div>`;
 
-    wrap.appendChild(buildSingleDateTable(students, 'Student'));
+    const studentTable = buildSingleDateTable(students, 'Student');
+    wrap.appendChild(studentTable);
     if (teachers.length) {
       const gap = document.createElement('div'); gap.style.marginTop = '10px';
       wrap.appendChild(gap);
-      wrap.appendChild(buildSingleDateTable(teachers, 'Teacher'));
+      const teacherTable = buildSingleDateTable(teachers, 'Teacher');
+      wrap.appendChild(teacherTable);
+      // Sync name-column width after paint
+      requestAnimationFrame(() => syncNameColWidth(studentTable, teacherTable));
     }
     output.appendChild(wrap);
   });
@@ -984,14 +1002,10 @@ function renderAllDatesReport(classes) {
     const teachers    = allStudents.filter(s => s.isTeacher);
     const students    = allStudents.filter(s => !s.isTeacher);
 
-    const presentS = students.filter(s => !!(s.attendance || {})[activeKey]).length;
-    const presentT = teachers.filter(s => !!(s.attendance || {})[activeKey]).length;
     const totalS   = students.length;
     const totalT   = teachers.length;
 
-    const badgeText = totalT > 0
-      ? `${presentS} + ${presentT} / ${totalS} + ${totalT} present`
-      : `${presentS} / ${totalS} present`;
+    const badgeText = '';
 
     const wrap = document.createElement('div');
     wrap.className = 'class-section-wrap';
@@ -1001,14 +1015,18 @@ function renderAllDatesReport(classes) {
           <div class="class-section-name">${cls.className || cls.classId}</div>
           <div class="class-section-teacher">👤 ${cls.teacher || ''}${cls.email ? ` &nbsp;·&nbsp; ${cls.email}` : ''}</div>
         </div>
-        <span class="class-section-badge">${badgeText}</span>
+        ${badgeText ? `<span class="class-section-badge">${badgeText}</span>` : ''}
       </div>`;
 
-    wrap.appendChild(buildAllDatesTable(students, 'Student'));
+    const studentTable = buildAllDatesTable(students, 'Student');
+    wrap.appendChild(studentTable);
     if (teachers.length) {
       const gap = document.createElement('div'); gap.style.marginTop = '10px';
       wrap.appendChild(gap);
-      wrap.appendChild(buildAllDatesTable(teachers, 'Teacher'));
+      const teacherTable = buildAllDatesTable(teachers, 'Teacher');
+      wrap.appendChild(teacherTable);
+      // Sync name-column width after paint
+      requestAnimationFrame(() => syncNameColWidth(studentTable, teacherTable));
     }
     output.appendChild(wrap);
   });
