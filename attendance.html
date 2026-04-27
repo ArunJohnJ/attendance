@@ -986,13 +986,13 @@
 
         <!-- ── Summary Bar ───────────────────────────── -->
         <div class="summary-bar">
-            <div class="summary-stat present"><span class="num" id="present-count">0</span><span class="lbl">Present</span>
+            <div class="summary-stat present"><span class="num" id="present-count">0 + 0</span><span class="lbl">Present</span>
             </div>
             <div class="divider-v"></div>
-            <div class="summary-stat absent"><span class="num" id="absent-count">0</span><span class="lbl">Absent</span>
+            <div class="summary-stat absent"><span class="num" id="absent-count">0 + 0</span><span class="lbl">Absent</span>
             </div>
             <div class="divider-v"></div>
-            <div class="summary-stat total"><span class="num" id="total-count">0</span><span class="lbl">Total</span></div>
+            <div class="summary-stat total"><span class="num" id="total-count">0 + 0</span><span class="lbl">Total</span></div>
         </div>
 
         <!-- ── Progress Bar ──────────────────────────── -->
@@ -1008,6 +1008,8 @@
 
         <!-- ── Student List ──────────────────────────── -->
         <div class="students-section">
+            <div class="section-label" id="teachers-section-label" style="display:none">Teachers</div>
+            <div class="student-grid" id="teacher-list"></div>
             <div class="section-label" id="students-label">Students — May 3</div>
             <div class="student-grid" id="student-list"></div>
         </div>
@@ -1162,7 +1164,7 @@
             const records = data.response || [];
 
             // Rebuild student list from this date's response
-            CLASS.students = records.map(r => ({id: r.studentId, name: r.name, isTeacher: r.isTeacher || ''}));
+            CLASS.students = records.map(r => ({id: r.studentId, name: r.name, isTeacher: r.isTeacher === 'Y'})).sort((a, b) => a.name.localeCompare(b.name));
 
             if (!attendance[activeClass]) attendance[activeClass] = {};
             attendance[activeClass][key] = {};
@@ -1218,7 +1220,8 @@
 
     function updateStudentCount() {
         const el = document.getElementById('class-student-count');
-        if (el) el.textContent = `${CLASS.students.length} student${CLASS.students.length !== 1 ? 's' : ''}`;
+        const studentOnly = CLASS.students.filter(s => !s.isTeacher);
+        if (el) el.textContent = `${studentOnly.length} student${studentOnly.length !== 1 ? 's' : ''}`;
     }
 
     // ── Date Strip ────────────────────────────────────
@@ -1252,9 +1255,17 @@
         const key = dateKey(DAYS[activeDay]);
         const dayAtt = (attendance[activeClass] || {})[key] || {};
         const list = document.getElementById('student-list');
+        const teacherList = document.getElementById('teacher-list');
         list.innerHTML = '';
+        teacherList.innerHTML = '';
 
-        CLASS.students.forEach(({id, name}) => {
+        const teachers = CLASS.students.filter(s => s.isTeacher);
+        const students = CLASS.students.filter(s => !s.isTeacher);
+
+        // Show/hide teacher section label
+        document.getElementById('teachers-section-label').style.display = teachers.length > 0 ? '' : 'none';
+
+        function buildRow({id, name}) {
             const isPresent = !!dayAtt[name];
             const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2);
             const row = document.createElement('div');
@@ -1287,8 +1298,11 @@
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
       </button>`;
-            list.appendChild(row);
-        });
+            return row;
+        }
+
+        teachers.forEach(s => teacherList.appendChild(buildRow(s)));
+        students.forEach(s => list.appendChild(buildRow(s)));
         updateSummary();
     }
 
@@ -1338,12 +1352,19 @@
     function updateSummary() {
         const key = dateKey(DAYS[activeDay]);
         const dayAtt = (attendance[activeClass] || {})[key] || {};
-        const total = CLASS.students.length;
-        const present = CLASS.students.filter(s => !!dayAtt[s.name]).length;
-        document.getElementById('present-count').textContent = present;
-        document.getElementById('absent-count').textContent = total - present;
-        document.getElementById('total-count').textContent = total;
-        document.getElementById('progress-fill').style.width = total > 0 ? `${Math.round((present / total) * 100)}%` : '0%';
+        const students = CLASS.students.filter(s => !s.isTeacher);
+        const teachers = CLASS.students.filter(s => s.isTeacher);
+
+        const studentsPresent = students.filter(s => !!dayAtt[s.name]).length;
+        const teachersPresent = teachers.filter(s => !!dayAtt[s.name]).length;
+
+        const studentsAbsent = students.length - studentsPresent;
+        const teachersAbsent = teachers.length - teachersPresent;
+
+        document.getElementById('present-count').textContent = `${studentsPresent} + ${teachersPresent}`;
+        document.getElementById('absent-count').textContent = `${studentsAbsent} + ${teachersAbsent}`;
+        document.getElementById('total-count').textContent = `${students.length} + ${teachers.length}`;
+        document.getElementById('progress-fill').style.width = students.length > 0 ? `${Math.round((studentsPresent / students.length) * 100)}%` : '0%';
     }
 
     // ── Submit Attendance ─────────────────────────────
@@ -1359,8 +1380,7 @@
             studentId: s.id,
             date: key,
             class: activeClass,
-            attendanceStatus: dayAtt[s.name] ? 'P' : 'A',
-            isTeacher: s.isTeacher || ''
+            attendanceStatus: dayAtt[s.name] ? 'P' : 'A'
         }));
 
         const btn = document.querySelector('.submit-btn');
@@ -1514,7 +1534,7 @@
             }
         });
 
-        const students = [...studentMap.entries()].map(([id, name]) => ({id, name}));
+        const students = [...studentMap.entries()].map(([id, name]) => ({id, name})).sort((a, b) => a.name.localeCompare(b.name));
         return {students, byDate};
     }
 

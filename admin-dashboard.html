@@ -294,7 +294,7 @@
     .class-section-badge {
       background: var(--green-bg); color: var(--green);
       border-radius: 999px; padding: 2px 10px;
-      font-size: 0.72rem; font-weight: 700;
+      font-size: 0.72rem; font-weight: 700; white-space: nowrap;
     }
 
     /* ── Manage Access Table ─────────────────────── */
@@ -541,9 +541,9 @@
 
     <!-- Summary -->
     <div class="summary-row">
-      <div class="summary-card present"><div class="num" id="sum-present">0</div><div class="lbl">Present</div></div>
-      <div class="summary-card absent"><div class="num" id="sum-absent">0</div><div class="lbl">Absent</div></div>
-      <div class="summary-card total"><div class="num" id="sum-total">0</div><div class="lbl">Total</div></div>
+      <div class="summary-card present"><div class="num" id="sum-present" style="font-size:1.2rem">0</div><div class="lbl">Present</div></div>
+      <div class="summary-card absent"><div class="num" id="sum-absent" style="font-size:1.2rem">0</div><div class="lbl">Absent</div></div>
+      <div class="summary-card total"><div class="num" id="sum-total" style="font-size:1.2rem">0</div><div class="lbl">Total</div></div>
     </div>
 
     <!-- Report output -->
@@ -848,13 +848,27 @@ async function loadSpecificDate() {
 function renderSpecificDateReport(classes) {
   const output = document.getElementById('report-output');
   output.innerHTML = '';
-  let grandPresent = 0, grandAbsent = 0, grandTotal = 0;
+  let grandPresentS = 0, grandPresentT = 0;
+  let grandAbsentS  = 0, grandAbsentT  = 0;
+  let grandTotalS   = 0, grandTotalT   = 0;
 
   classes.forEach(cls => {
-    const students = cls.students || [];
-    const present  = students.filter(s => !!s.present).length;
-    const total    = students.length;
-    grandPresent += present; grandAbsent += total - present; grandTotal += total;
+    const allStudents = (cls.students || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+    const teachers    = allStudents.filter(s => s.isTeacher);
+    const students    = allStudents.filter(s => !s.isTeacher);
+
+    const presentS = students.filter(s => !!s.present).length;
+    const presentT = teachers.filter(s => !!s.present).length;
+    const totalS   = students.length;
+    const totalT   = teachers.length;
+
+    grandPresentS += presentS; grandPresentT += presentT;
+    grandAbsentS  += totalS - presentS; grandAbsentT += totalT - presentT;
+    grandTotalS   += totalS; grandTotalT   += totalT;
+
+    const badgeText = totalT > 0
+      ? `${presentS} + ${presentT} / ${totalS} + ${totalT} present`
+      : `${presentS} / ${totalS} present`;
 
     const wrap = document.createElement('div');
     wrap.className = 'class-section-wrap';
@@ -864,7 +878,7 @@ function renderSpecificDateReport(classes) {
           <div class="class-section-name">${cls.className || cls.classId}</div>
           <div class="class-section-teacher">👤 ${cls.teacher || ''}${cls.email ? ` &nbsp;·&nbsp; ${cls.email}` : ''}</div>
         </div>
-        <span class="class-section-badge">${present} / ${total} present</span>
+        <span class="class-section-badge">${badgeText}</span>
       </div>`;
 
     const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll';
@@ -873,20 +887,23 @@ function renderSpecificDateReport(classes) {
       <th class="col-active">${MONTH_ABBR[DAYS[activeDay].getMonth()]} ${DAYS[activeDay].getDate()}</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
-    students.forEach((s, i) => {
+
+    // Render non-teacher students first, then teachers
+    [...students, ...teachers].forEach((s, i) => {
       const tr = document.createElement('tr');
       const presentVal = s.present == null ? '' : String(s.present);
-      tr.innerHTML = `<td>${i+1}</td><td style="text-align:left;font-weight:600">${s.name}</td>
-        <td class="col-active ${s.present ? 'cell-p' : 'cell-a'}" data-val="${presentVal}">${s.present ? '✅' : '❌'}</td>`;
+      const nameDisplay = s.isTeacher ? `${s.name} <span style="font-size:0.65rem;color:var(--amber);font-weight:700">[T]</span>` : s.name;
+      tr.innerHTML = `<td>${i+1}</td><td style="text-align:left;font-weight:600">${nameDisplay}</td>
+        <td class="col-active ${s.present ? 'cell-p' : 'cell-a'}" data-val="${presentVal}" data-isteacher="${s.isTeacher ? '1' : '0'}">${s.present ? '✅' : '❌'}</td>`;
       tbody.appendChild(tr);
     });
     table.appendChild(tbody); scrollDiv.appendChild(table); wrap.appendChild(scrollDiv);
     output.appendChild(wrap);
   });
 
-  document.getElementById('sum-present').textContent = grandPresent;
-  document.getElementById('sum-absent').textContent  = grandAbsent;
-  document.getElementById('sum-total').textContent   = grandTotal;
+  document.getElementById('sum-present').textContent = grandTotalT > 0 ? `${grandPresentS} + ${grandPresentT}` : grandPresentS;
+  document.getElementById('sum-absent').textContent  = grandTotalT > 0 ? `${grandAbsentS} + ${grandAbsentT}`   : grandAbsentS;
+  document.getElementById('sum-total').textContent   = grandTotalT > 0 ? `${grandTotalS} + ${grandTotalT}`     : grandTotalS;
 }
 
 // ── VIEW_STUDENTS_ALL_DATES ───────────────────────
@@ -910,14 +927,28 @@ async function loadAllDates() {
 function renderAllDatesReport(classes) {
   const output = document.getElementById('report-output');
   output.innerHTML = '';
-  let grandPresent = 0, grandAbsent = 0, grandTotal = 0;
+  let grandPresentS = 0, grandPresentT = 0;
+  let grandAbsentS  = 0, grandAbsentT  = 0;
+  let grandTotalS   = 0, grandTotalT   = 0;
   const activeKey = dateKey(DAYS[activeDay]);
 
   classes.forEach(cls => {
-    const students = cls.students || [];
-    const present  = students.filter(s => !!(s.attendance || {})[activeKey]).length;
-    const total    = students.length;
-    grandPresent += present; grandAbsent += total - present; grandTotal += total;
+    const allStudents = (cls.students || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+    const teachers    = allStudents.filter(s => s.isTeacher);
+    const students    = allStudents.filter(s => !s.isTeacher);
+
+    const presentS = students.filter(s => !!(s.attendance || {})[activeKey]).length;
+    const presentT = teachers.filter(s => !!(s.attendance || {})[activeKey]).length;
+    const totalS   = students.length;
+    const totalT   = teachers.length;
+
+    grandPresentS += presentS; grandPresentT += presentT;
+    grandAbsentS  += totalS - presentS; grandAbsentT += totalT - presentT;
+    grandTotalS   += totalS; grandTotalT   += totalT;
+
+    const badgeText = totalT > 0
+      ? `${presentS} + ${presentT} / ${totalS} + ${totalT} present`
+      : `${presentS} / ${totalS} present`;
 
     const wrap = document.createElement('div');
     wrap.className = 'class-section-wrap';
@@ -927,7 +958,7 @@ function renderAllDatesReport(classes) {
           <div class="class-section-name">${cls.className || cls.classId}</div>
           <div class="class-section-teacher">👤 ${cls.teacher || ''}${cls.email ? ` &nbsp;·&nbsp; ${cls.email}` : ''}</div>
         </div>
-        <span class="class-section-badge">${present} / ${total} present</span>
+        <span class="class-section-badge">${badgeText}</span>
       </div>`;
 
     const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll all-dates-scroll';
@@ -946,9 +977,11 @@ function renderAllDatesReport(classes) {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    students.forEach((s, ri) => {
+    // Render non-teacher students first, then teachers
+    [...students, ...teachers].forEach((s, ri) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${ri+1}</td><td style="text-align:left;font-weight:600">${s.name}</td>`;
+      const nameDisplay = s.isTeacher ? `${s.name} <span style="font-size:0.65rem;color:var(--amber);font-weight:700">[T]</span>` : s.name;
+      tr.innerHTML = `<td>${ri+1}</td><td style="text-align:left;font-weight:600">${nameDisplay}</td>`;
       let total = 0;
         DAYS.forEach((d, i) => {
           const rawVal = (s.attendance || {})[dateKey(d)];
@@ -959,6 +992,7 @@ function renderAllDatesReport(classes) {
           td.className = isP ? 'cell-p' : isA ? 'cell-a' : 'cell-dash';
           if (i === activeDay) td.classList.add('col-active');
           td.dataset.val = rawVal == null ? '' : String(rawVal);
+          td.dataset.isteacher = s.isTeacher ? '1' : '0';
           td.textContent = isP ? '✅' : isA ? '❌' : '-';
           tr.appendChild(td);
         });
@@ -969,9 +1003,9 @@ function renderAllDatesReport(classes) {
     output.appendChild(wrap);
   });
 
-  document.getElementById('sum-present').textContent = grandPresent;
-  document.getElementById('sum-absent').textContent  = grandAbsent;
-  document.getElementById('sum-total').textContent   = grandTotal;
+  document.getElementById('sum-present').textContent = grandTotalT > 0 ? `${grandPresentS} + ${grandPresentT}` : grandPresentS;
+  document.getElementById('sum-absent').textContent  = grandTotalT > 0 ? `${grandAbsentS} + ${grandAbsentT}`   : grandAbsentS;
+  document.getElementById('sum-total').textContent   = grandTotalT > 0 ? `${grandTotalS} + ${grandTotalT}`     : grandTotalS;
 }
 
 // ── Export helpers ────────────────────────────────

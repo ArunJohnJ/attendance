@@ -125,6 +125,24 @@
     .total-card-num { font-size: 2rem; font-weight: 800; color: var(--green); line-height: 1; }
     .total-card-sub { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
 
+    /* ── Breakdown cards ──────────────────────── */
+    .breakdown-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      margin-bottom: 16px;
+    }
+    .breakdown-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .breakdown-card-label { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .breakdown-card-num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .breakdown-card-num.students { color: var(--green); }
+    .breakdown-card-num.teachers { color: #60a5fa; }
+    .breakdown-card-num.directors { color: #f59e0b; }
+    .breakdown-card-num.volunteers { color: #c084fc; }
+    .breakdown-card-sub { font-size: 0.62rem; color: var(--muted); }
+
     /* ── Table ────────────────────────────────── */
     .table-wrap {
       background: var(--surface); border: 1px solid var(--border);
@@ -142,14 +160,14 @@
       text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
       text-align: left;
     }
-    th:not(:first-child) { text-align: center; }
+    th:last-child { text-align: right; }
 
     tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--surface-2); }
 
     td { padding: 12px 14px; font-size: 0.88rem; }
-    td:not(:first-child) { text-align: center; }
+    td:last-child { text-align: right; }
 
     .class-name { font-weight: 600; }
     .class-teacher { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
@@ -229,10 +247,32 @@
   <!-- Grand total -->
   <div class="total-card">
     <div>
-      <div class="total-card-label">Total Students Present</div>
+      <div class="total-card-label">Total Present</div>
+      <div class="total-card-sub">Students + Volunteers + Teachers + Directors</div>
     </div>
     <div style="text-align:right">
       <div class="total-card-num" id="grand-total">—</div>
+    </div>
+  </div>
+
+  <!-- Breakdown cards -->
+  <div class="breakdown-grid">
+    <div class="breakdown-card">
+      <div class="breakdown-card-label">Students</div>
+      <div class="breakdown-card-num students" id="total-students">—</div>
+    </div>
+    <div class="breakdown-card">
+      <div class="breakdown-card-label">Volunteers</div>
+      <div class="breakdown-card-num volunteers" id="total-volunteers">—</div>
+    </div>
+    <div class="breakdown-card">
+      <div class="breakdown-card-label">Teachers</div>
+      <div class="breakdown-card-num teachers" id="total-teachers">—</div>
+    </div>
+    <div class="breakdown-card">
+      <div class="breakdown-card-label">Directors</div>
+      <div class="breakdown-card-num directors" id="total-directors">2</div>
+      <div class="breakdown-card-sub">Static count</div>
     </div>
   </div>
 
@@ -242,7 +282,8 @@
       <thead>
         <tr>
           <th>Class</th>
-          <th>Count</th>
+          <th style="text-align:right">Students</th>
+          <th style="text-align:right">Teachers</th>
         </tr>
       </thead>
       <tbody id="stats-body"></tbody>
@@ -319,41 +360,65 @@ async function loadSummary() {
     activeIdx === TODAY_IDX ? '📅 Today\'s attendance count per class' : 'Attendance count per class';
 
   const tbody = document.getElementById('stats-body');
-      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--muted)"><div class="fetch-spinner show" style="justify-content:center"><div class="spinner-ring"></div> Loading…</div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--muted)"><div class="fetch-spinner show" style="justify-content:center"><div class="spinner-ring"></div> Loading…</div></td></tr>';
   document.getElementById('grand-total').textContent = '—';
+  document.getElementById('total-students').textContent = '—';
+  document.getElementById('total-volunteers').textContent = '—';
+  document.getElementById('total-teachers').textContent = '—';
 
   try {
     const raw     = await apiCall(APP_CONFIG.LAMBDA_URLS.SUMMARY, { body: { date: key }, auth: false });
     // Lambda wraps the payload: { statusCode, headers, body: "<json string>" }
     const data    = typeof raw.body === 'string' ? JSON.parse(raw.body) : (raw.body ?? raw);
     const classes = sortClasses(data.response || []);
-    function parsePresentCount(val) {
-      const str = String(val ?? '0');
-      // Handle "40 + 3" format → 40, or plain "40" → 40
-      return Number(str.split('+')[0].trim()) || 0;
-    }
-    const grandTotal = data.grandTotal ?? classes
-      .filter(c => !(c['class'] || '').toUpperCase().includes('VOLUNTEERS'))
-      .reduce((s, c) => s + parsePresentCount(c.presentCount), 0);
+
+    const DIRECTORS = 2;
+    let totalStudents = 0;
+    let totalVolunteers = 0;
+    let totalTeachers = 0;
+
+    // Parse each class's presentCount (format: "students" or "students + teachers")
+    // VOLUNTEERS class is tracked separately and excluded from totalStudents
+    const parsed = classes.map(cls => {
+      const rawCount = (cls.presentCount ?? '').toString();
+      const parts = rawCount.split('+');
+      const students = parseInt(parts[0].trim(), 10) || 0;
+      const teachers = parts.length > 1 ? (parseInt(parts[1].trim(), 10) || 0) : null;
+      const isVolunteers = (cls['class'] || '').toString().toUpperCase() === 'VOLUNTEERS';
+      if (isVolunteers) {
+        totalVolunteers += students;
+      } else {
+        totalStudents += students;
+      }
+      if (teachers !== null) totalTeachers += teachers;
+      return { ...cls, students, teachers, isVolunteers };
+    });
+
+    const grandTotal = totalStudents + totalVolunteers + totalTeachers + DIRECTORS;
 
     tbody.innerHTML = '';
-    if (classes.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="2" class="empty">No data for this date</td></tr>';
+    if (parsed.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">No data for this date</td></tr>';
     } else {
-      classes.forEach(cls => {
+      parsed.forEach(cls => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>
             <div class="class-name">${cls['class']}</div>
             ${cls.teacher ? `<div class="class-teacher">👤 ${cls.teacher}</div>` : ''}
           </td>
-          <td><span class="count-badge">${cls.presentCount ?? '—'}</span></td>`;
+          <td><span class="count-badge">${cls.students}</span></td>
+          <td><span class="count-badge" style="${cls.teachers !== null ? 'background:rgba(96,165,250,0.15);color:#60a5fa' : 'background:var(--surface-2);color:var(--muted)'}">${cls.teachers !== null ? cls.teachers : '—'}</span></td>`;
         tbody.appendChild(tr);
       });
     }
     document.getElementById('grand-total').textContent = grandTotal;
+    document.getElementById('total-students').textContent = totalStudents;
+    document.getElementById('total-volunteers').textContent = totalVolunteers;
+    document.getElementById('total-teachers').textContent = totalTeachers;
+    document.getElementById('total-directors').textContent = DIRECTORS;
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--red)">${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--red)">${err.message}</td></tr>`;
     showToast('❌ Failed to load summary');
   }
 }
