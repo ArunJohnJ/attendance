@@ -853,6 +853,26 @@ function renderSpecificDateReport(classes) {
   let grandAbsentS  = 0, grandAbsentT  = 0;
   let grandTotalS   = 0, grandTotalT   = 0;
 
+  const dateLabel = `${MONTH_ABBR[DAYS[activeDay].getMonth()]} ${DAYS[activeDay].getDate()}`;
+
+  function buildSingleDateTable(people, colLabel) {
+    const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll';
+    const table = document.createElement('table'); table.className = 'att-table';
+    table.innerHTML = `<thead><tr><th>#</th><th style="text-align:left">${colLabel}</th>
+      <th class="col-active">${dateLabel}</th>
+    </tr></thead>`;
+    const tbody = document.createElement('tbody');
+    people.forEach((s, i) => {
+      const tr = document.createElement('tr');
+      const presentVal = s.present == null ? '' : String(s.present);
+      tr.innerHTML = `<td>${i+1}</td><td style="text-align:left;font-weight:600">${s.name}</td>
+        <td class="col-active ${s.present ? 'cell-p' : 'cell-a'}" data-val="${presentVal}" data-isteacher="${s.isTeacher ? '1' : '0'}">${s.present ? '✅' : '❌'}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); scrollDiv.appendChild(table);
+    return scrollDiv;
+  }
+
   classes.forEach(cls => {
     const allStudents = (cls.students || []).slice().sort((a, b) => a.name.localeCompare(b.name));
     const teachers    = allStudents.filter(s => s.isTeacher);
@@ -882,23 +902,12 @@ function renderSpecificDateReport(classes) {
         <span class="class-section-badge">${badgeText}</span>
       </div>`;
 
-    const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll';
-    const table = document.createElement('table'); table.className = 'att-table';
-    table.innerHTML = `<thead><tr><th>#</th><th style="text-align:left">Student</th>
-      <th class="col-active">${MONTH_ABBR[DAYS[activeDay].getMonth()]} ${DAYS[activeDay].getDate()}</th>
-    </tr></thead>`;
-    const tbody = document.createElement('tbody');
-
-    // Render non-teacher students first, then teachers
-    [...students, ...teachers].forEach((s, i) => {
-      const tr = document.createElement('tr');
-      const presentVal = s.present == null ? '' : String(s.present);
-      const nameDisplay = s.isTeacher ? `${s.name} <span style="font-size:0.65rem;color:var(--amber);font-weight:700">[T]</span>` : s.name;
-      tr.innerHTML = `<td>${i+1}</td><td style="text-align:left;font-weight:600">${nameDisplay}</td>
-        <td class="col-active ${s.present ? 'cell-p' : 'cell-a'}" data-val="${presentVal}" data-isteacher="${s.isTeacher ? '1' : '0'}">${s.present ? '✅' : '❌'}</td>`;
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody); scrollDiv.appendChild(table); wrap.appendChild(scrollDiv);
+    wrap.appendChild(buildSingleDateTable(students, 'Student'));
+    if (teachers.length) {
+      const gap = document.createElement('div'); gap.style.marginTop = '10px';
+      wrap.appendChild(gap);
+      wrap.appendChild(buildSingleDateTable(teachers, 'Teacher'));
+    }
     output.appendChild(wrap);
   });
 
@@ -929,10 +938,46 @@ async function loadAllDates() {
 function renderAllDatesReport(classes) {
   const output = document.getElementById('report-output');
   output.innerHTML = '';
-  let grandPresentS = 0, grandPresentT = 0;
-  let grandAbsentS  = 0, grandAbsentT  = 0;
-  let grandTotalS   = 0, grandTotalT   = 0;
   const activeKey = dateKey(DAYS[activeDay]);
+
+  function buildAllDatesTable(people, colLabel) {
+    const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll all-dates-scroll';
+    const table = document.createElement('table'); table.className = 'att-table all-dates-table';
+    const thRow = document.createElement('tr');
+    thRow.innerHTML = `<th>#</th><th style="text-align:left">${colLabel}</th>`;
+    DAYS.forEach((d, i) => {
+      const th = document.createElement('th');
+      th.textContent = `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
+      if (i === activeDay) th.classList.add('col-active');
+      thRow.appendChild(th);
+    });
+    const thTotal = document.createElement('th'); thTotal.textContent = 'Total'; thRow.appendChild(thTotal);
+    const thead = document.createElement('thead'); thead.appendChild(thRow);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    people.forEach((s, ri) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${ri+1}</td><td style="text-align:left;font-weight:600">${s.name}</td>`;
+      let total = 0;
+      DAYS.forEach((d, i) => {
+        const rawVal = (s.attendance || {})[dateKey(d)];
+        const isP = rawVal === true;
+        const isA = rawVal === false;
+        if (isP) total++;
+        const td = document.createElement('td');
+        td.className = isP ? 'cell-p' : isA ? 'cell-a' : 'cell-dash';
+        if (i === activeDay) td.classList.add('col-active');
+        td.dataset.val = rawVal == null ? '' : String(rawVal);
+        td.dataset.isteacher = s.isTeacher ? '1' : '0';
+        td.textContent = isP ? '✅' : isA ? '❌' : '-';
+        tr.appendChild(td);
+      });
+      const tdTot = document.createElement('td'); tdTot.textContent = total; tr.appendChild(tdTot);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); scrollDiv.appendChild(table);
+    return scrollDiv;
+  }
 
   classes.forEach(cls => {
     const allStudents = (cls.students || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -943,10 +988,6 @@ function renderAllDatesReport(classes) {
     const presentT = teachers.filter(s => !!(s.attendance || {})[activeKey]).length;
     const totalS   = students.length;
     const totalT   = teachers.length;
-
-    grandPresentS += presentS; grandPresentT += presentT;
-    grandAbsentS  += totalS - presentS; grandAbsentT += totalT - presentT;
-    grandTotalS   += totalS; grandTotalT   += totalT;
 
     const badgeText = totalT > 0
       ? `${presentS} + ${presentT} / ${totalS} + ${totalT} present`
@@ -963,45 +1004,12 @@ function renderAllDatesReport(classes) {
         <span class="class-section-badge">${badgeText}</span>
       </div>`;
 
-    const scrollDiv = document.createElement('div'); scrollDiv.className = 'table-scroll all-dates-scroll';
-    const table = document.createElement('table'); table.className = 'att-table all-dates-table';
-
-    const thRow = document.createElement('tr');
-    thRow.innerHTML = '<th>#</th><th style="text-align:left">Student</th>';
-    DAYS.forEach((d, i) => {
-      const th = document.createElement('th');
-      th.textContent = `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
-      if (i === activeDay) th.classList.add('col-active');
-      thRow.appendChild(th);
-    });
-    const thTotal = document.createElement('th'); thTotal.textContent = 'Total'; thRow.appendChild(thTotal);
-    const thead = document.createElement('thead'); thead.appendChild(thRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    // Render non-teacher students first, then teachers
-    [...students, ...teachers].forEach((s, ri) => {
-      const tr = document.createElement('tr');
-      const nameDisplay = s.isTeacher ? `${s.name} <span style="font-size:0.65rem;color:var(--amber);font-weight:700">[T]</span>` : s.name;
-      tr.innerHTML = `<td>${ri+1}</td><td style="text-align:left;font-weight:600">${nameDisplay}</td>`;
-      let total = 0;
-        DAYS.forEach((d, i) => {
-          const rawVal = (s.attendance || {})[dateKey(d)];
-          const isP = rawVal === true;
-          const isA = rawVal === false;
-          if (isP) total++;
-          const td = document.createElement('td');
-          td.className = isP ? 'cell-p' : isA ? 'cell-a' : 'cell-dash';
-          if (i === activeDay) td.classList.add('col-active');
-          td.dataset.val = rawVal == null ? '' : String(rawVal);
-          td.dataset.isteacher = s.isTeacher ? '1' : '0';
-          td.textContent = isP ? '✅' : isA ? '❌' : '-';
-          tr.appendChild(td);
-        });
-      const tdTot = document.createElement('td'); tdTot.textContent = total; tr.appendChild(tdTot);
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody); scrollDiv.appendChild(table); wrap.appendChild(scrollDiv);
+    wrap.appendChild(buildAllDatesTable(students, 'Student'));
+    if (teachers.length) {
+      const gap = document.createElement('div'); gap.style.marginTop = '10px';
+      wrap.appendChild(gap);
+      wrap.appendChild(buildAllDatesTable(teachers, 'Teacher'));
+    }
     output.appendChild(wrap);
   });
 
