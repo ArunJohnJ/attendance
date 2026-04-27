@@ -127,7 +127,7 @@
 
     /* ── Breakdown cards ──────────────────────────────────────────── */
     .breakdown-grid {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
       margin-bottom: 16px;
     }
     .breakdown-card {
@@ -275,10 +275,6 @@
       <div class="breakdown-card-label">Directors</div>
       <div class="breakdown-card-num directors" id="total-directors">2</div>
     </div>
-    <div class="breakdown-card">
-      <div class="breakdown-card-label">Total</div>
-      <div class="breakdown-card-num" style="color:var(--text)" id="grand-total-mini">—</div>
-    </div>
   </div>
 
   <!-- Per-class table -->
@@ -418,7 +414,6 @@ async function loadSummary() {
       });
     }
     document.getElementById('grand-total').textContent = grandTotal;
-    document.getElementById('grand-total-mini').textContent = grandTotal;
     document.getElementById('total-students').textContent = totalStudents;
     document.getElementById('total-volunteers').textContent = totalVolunteers;
     document.getElementById('total-teachers').textContent = totalTeachers;
