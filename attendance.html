@@ -1535,8 +1535,18 @@
             }
         });
 
-        const students = [...studentMap.entries()].map(([id, name]) => ({id, name})).sort((a, b) => a.name.localeCompare(b.name));
-        return {students, byDate};
+        // Track isTeacher per studentId
+        const isTeacherMap = new Map();
+        records.forEach(r => {
+            if (r.studentId) isTeacherMap.set(r.studentId, r.isTeacher === 'Y');
+        });
+
+        const allPeople = [...studentMap.entries()]
+            .map(([id, name]) => ({id, name, isTeacher: !!isTeacherMap.get(id)}))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        const students = allPeople.filter(p => !p.isTeacher);
+        const teachers = allPeople.filter(p => p.isTeacher);
+        return {students, teachers, byDate};
     }
 
     function buildExportRows(students, byDate) {
@@ -1567,9 +1577,9 @@
 
     async function exportExcel() {
         showToastPersistent('⏳ Fetching attendance data…');
-        let students, byDate;
+        let students, teachers, byDate;
         try {
-            ({students, byDate} = await fetchAllDaysForExport());
+            ({students, teachers, byDate} = await fetchAllDaysForExport());
         } catch (e) {
             showToast('❌ Failed to load attendance data');
             console.error(e);
@@ -1577,11 +1587,23 @@
         }
         try {
             showToastPersistent('📊 Building Excel file…');
-            const {headers, rows} = buildExportRows(students, byDate);
             const teacherLine = CLASS.teacher_name ? `Teacher(s): ${CLASS.teacher_name}` : '';
             const titleRow = [`${CLASS.name}${teacherLine ? '  |  ' + teacherLine : ''}`];
-            const ws = XLSX.utils.aoa_to_sheet([titleRow, [], headers, ...rows]);
-            ws['!cols'] = [{wch: 5}, {wch: 22}, ...DAYS.map(() => ({wch: 7})), {wch: 18}, {wch: 6}];
+            const colWidths = [{wch: 5}, {wch: 22}, ...DAYS.map(() => ({wch: 7})), {wch: 18}, {wch: 6}];
+
+            const {headers: sHeaders, rows: sRows} = buildExportRows(students, byDate);
+            const teacherHeaderRow = ['', 'Teachers'];
+            const {headers: tHeaders, rows: tRows} = buildExportRows(teachers, byDate);
+            // Replace "Student" label with "Teacher" in headers
+            tHeaders[1] = 'Teacher';
+
+            const ws = XLSX.utils.aoa_to_sheet([
+                titleRow, [],
+                sHeaders, ...sRows,
+                [], teacherHeaderRow, [],
+                tHeaders, ...tRows
+            ]);
+            ws['!cols'] = colWidths;
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
             XLSX.writeFile(wb, `attendance_${activeClass || 'class'}.xlsx`);
@@ -1595,9 +1617,9 @@
 
     async function exportPDF() {
         showToastPersistent('⏳ Fetching attendance data…');
-        let students, byDate;
+        let students, teachers, byDate;
         try {
-            ({students, byDate} = await fetchAllDaysForExport());
+            ({students, teachers, byDate} = await fetchAllDaysForExport());
         } catch (e) {
             showToast('❌ Failed to load attendance data');
             console.error(e);
@@ -1607,19 +1629,23 @@
             showToastPersistent('📄 Generating PDF…');
             const {jsPDF} = window.jspdf;
             const doc = new jsPDF({orientation: 'landscape', unit: 'mm', format: 'a4'});
-            const {headers, rows} = buildPdfRows(students, byDate);
-            doc.setFontSize(14);
-            doc.text(`Attendance Report — ${CLASS.name}`, 14, 15);
-            doc.setFontSize(9);
-            doc.setTextColor(120);
-            if (CLASS.teacher_name) {
-                doc.text(`Teacher(s): ${CLASS.teacher_name}`, 14, 21);
-                doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 26);
-            } else {
-                doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
-            }
-            doc.autoTable({
-                head: [headers], body: rows, startY: CLASS.teacher_name ? 31 : 26,
+
+            const cellStyle = (data, numCols) => {
+                if (data.section === 'body' && data.column.index > 1 && data.column.index < numCols - 1) {
+                    if (data.cell.raw === 'P') {
+                        data.cell.styles.fillColor = [220, 252, 231];
+                        data.cell.styles.textColor = [21, 128, 61];
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (data.cell.raw === 'A') {
+                        data.cell.styles.fillColor = [254, 226, 226];
+                        data.cell.styles.textColor = [185, 28, 28];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            };
+
+            const tableOpts = (headers, rows, startY) => ({
+                head: [headers], body: rows, startY,
                 styles: {fontSize: 8, cellPadding: 2, halign: 'center'},
                 headStyles: {fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold'},
                 columnStyles: {
@@ -1627,20 +1653,35 @@
                     1: {cellWidth: 36, halign: 'left'},
                     [headers.length - 1]: {cellWidth: 14, fontStyle: 'bold', fillColor: [238, 240, 245]}
                 },
-                didParseCell: (data) => {
-                    if (data.section === 'body' && data.column.index > 1 && data.column.index < headers.length - 1) {
-                        if (data.cell.raw === 'P') {
-                            data.cell.styles.fillColor = [220, 252, 231];
-                            data.cell.styles.textColor = [21, 128, 61];
-                            data.cell.styles.fontStyle = 'bold';
-                        } else if (data.cell.raw === 'A') {
-                            data.cell.styles.fillColor = [254, 226, 226];
-                            data.cell.styles.textColor = [185, 28, 28];
-                            data.cell.styles.fontStyle = 'bold';
-                        }
-                    }
-                }
+                didParseCell: (data) => cellStyle(data, headers.length)
             });
+
+            doc.setFontSize(14);
+            doc.text(`Attendance Report — ${CLASS.name}`, 14, 15);
+            doc.setFontSize(9);
+            doc.setTextColor(120);
+            let metaY = 21;
+            if (CLASS.teacher_name) {
+                doc.text(`Teacher(s): ${CLASS.teacher_name}`, 14, metaY);
+                metaY += 5;
+            }
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 14, metaY);
+
+            // Students table
+            const {headers: sHeaders, rows: sRows} = buildPdfRows(students, byDate);
+            doc.setFontSize(10); doc.setTextColor(40);
+            doc.autoTable(tableOpts(sHeaders, sRows, metaY + 6));
+
+            // Teachers table (only if any)
+            if (teachers.length) {
+                const {headers: tHeaders, rows: tRows} = buildPdfRows(teachers, byDate);
+                tHeaders[1] = 'Teacher';
+                const afterStudents = doc.lastAutoTable.finalY + 8;
+                doc.setFontSize(10); doc.setTextColor(40);
+                doc.text('Teachers', 14, afterStudents - 3);
+                doc.autoTable(tableOpts(tHeaders, tRows, afterStudents));
+            }
+
             doc.save(`attendance_${activeClass || 'class'}.pdf`);
             closeDrawer();
             showToast('✅ PDF downloaded!');
@@ -1680,39 +1721,55 @@
         const container = document.getElementById('allday-content');
         container.innerHTML = '<div class="allday-loading">⏳ Loading all attendance data…</div>';
         try {
-            const {students, byDate} = await fetchAllDaysForExport();
-            renderAllDayTable(students, byDate);
+            const {students, teachers, byDate} = await fetchAllDaysForExport();
+            renderAllDayTable(students, teachers, byDate);
         } catch (err) {
             container.innerHTML = `<div class="allday-loading" style="color:var(--red)">❌ ${err.message}</div>`;
         }
     }
 
-    function renderAllDayTable(students, byDate) {
+    function renderAllDayTable(students, teachers, byDate) {
         const container = document.getElementById('allday-content');
-        if (!students.length) {
+        if (!students.length && !teachers.length) {
             container.innerHTML = '<div class="allday-loading">No attendance data found.</div>';
             return;
         }
-        const dateHeaders = DAYS.map(d => `<th>${MONTH_ABBR[d.getMonth()]} ${d.getDate()}</th>`).join('');
-        const bodyRows = students.map(({name}, idx) => {
-            let totalPresent = 0;
-            const cells = DAYS.map(d => {
-                const att = byDate[dateKey(d)] || {};
-                const v = att[name];
-                if (v === true) { totalPresent++; return `<td class="cell-p">P</td>`; }
-                if (v === false) return `<td class="cell-a">A</td>`;
-                return `<td class="cell-na">-</td>`;
-            }).join('');
-            return `<tr><td>${idx + 1}</td><td>${escHtml(name)}</td>${cells}<td class="allday-total">${totalPresent}/${DAYS.length}</td></tr>`;
-        }).join('');
 
-        container.innerHTML = `
-            <div class="allday-table-wrap">
+        const dateHeaders = DAYS.map(d => `<th>${MONTH_ABBR[d.getMonth()]} ${d.getDate()}</th>`).join('');
+
+        function buildTableRows(people) {
+            return people.map(({name}, idx) => {
+                let totalPresent = 0;
+                const cells = DAYS.map(d => {
+                    const att = byDate[dateKey(d)] || {};
+                    const v = att[name];
+                    if (v === true) { totalPresent++; return `<td class="cell-p">P</td>`; }
+                    if (v === false) return `<td class="cell-a">A</td>`;
+                    return `<td class="cell-na">-</td>`;
+                }).join('');
+                return `<tr><td>${idx + 1}</td><td>${escHtml(name)}</td>${cells}<td class="allday-total">${totalPresent}/${DAYS.length}</td></tr>`;
+            }).join('');
+        }
+
+        const studentsHtml = students.length ? `
+            <div class="section-label" style="margin-bottom:8px">👩‍🎓 Students</div>
+            <div class="allday-table-wrap" style="margin-bottom:20px">
                 <table class="allday-table">
                     <thead><tr><th>#</th><th>Student</th>${dateHeaders}<th>Total</th></tr></thead>
-                    <tbody>${bodyRows}</tbody>
+                    <tbody>${buildTableRows(students)}</tbody>
                 </table>
-            </div>`;
+            </div>` : '';
+
+        const teachersHtml = teachers.length ? `
+            <div class="section-label" style="margin-bottom:8px">👩‍🏫 Teachers</div>
+            <div class="allday-table-wrap">
+                <table class="allday-table">
+                    <thead><tr><th>#</th><th>Teacher</th>${dateHeaders}<th>Total</th></tr></thead>
+                    <tbody>${buildTableRows(teachers)}</tbody>
+                </table>
+            </div>` : '';
+
+        container.innerHTML = studentsHtml + teachersHtml;
     }
 
     init();
