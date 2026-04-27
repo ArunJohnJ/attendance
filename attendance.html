@@ -1380,7 +1380,8 @@
             studentId: s.id,
             date: key,
             class: activeClass,
-            attendanceStatus: dayAtt[s.name] ? 'P' : 'A'
+            attendanceStatus: dayAtt[s.name] ? 'P' : 'A',
+            isTeacher: s.isTeacher ? 'Y' : ''
         }));
 
         const btn = document.querySelector('.submit-btn');
